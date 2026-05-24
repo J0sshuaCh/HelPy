@@ -1,0 +1,4 @@
+PyQt5>=5.15.0
+PyAudioWPatch>=0.2.12.8
+llama-index-llms-llamafile>=0.1.0
+llama-index-core>=0.10.0
