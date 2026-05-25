@@ -1,10 +1,13 @@
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    raise ImportError("Please install the openai package: pip install openai")
 
 # Conectamos el cliente al servidor LOCAL de LM Studio
 # Nota: Asegúrate de que LM Studio esté corriendo con el servidor local activo en el puerto 1234
 cliente_local = OpenAI(
     base_url="http://localhost:1234/v1", 
-    api_key="lm-studio" # Requerido pero no validado localmente
+    api_key="sk-lm-LuTykhUw:e8o6K9z1jklNrkww3W1m" # Requerido pero no validado localmente
 )
 
 def pensar_respuesta(texto_usuario: str) -> str:
