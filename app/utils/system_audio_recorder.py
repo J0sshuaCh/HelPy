@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, Callable
 
 
-class AudioRecorder:
+class SystemAudioRecorder:
     DEVICE_PRIORITY = ["mezcla estéreo", "mezcla estereo", "stereo mix",
                        "what u hear", "waveout", "rec."]
 

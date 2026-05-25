@@ -1,13 +1,13 @@
 import threading
 from typing import Optional, Callable
-from utils.audio_recorder import AudioRecorder
-from utils.speech_to_text import SpeechToTextEngine
+from app.utils.system_audio_recorder import SystemAudioRecorder
+from app.utils.speech_transcriber import SpeechTranscriber
 
 
-class AIAssistant:
+class AssistantController:
     def __init__(self, stt_language: str = "es", stt_backend: str = "whisper"):
-        self.recorder = AudioRecorder()
-        self.stt = SpeechToTextEngine(language=stt_language, backend=stt_backend)
+        self.recorder = SystemAudioRecorder()
+        self.stt = SpeechTranscriber(language=stt_language, backend=stt_backend)
         self._on_result_callback: Optional[Callable[[str], None]] = None
         self._on_status_callback: Optional[Callable[[str], None]] = None
 

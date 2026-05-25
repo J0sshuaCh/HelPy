@@ -3,10 +3,10 @@ import ctypes
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QSystemTrayIcon, QMenu
 from PyQt5.QtCore import Qt, QRect, pyqtSignal
 from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor
-from core.ai_assistant import AIAssistant
+from app.core.assistant_controller import AssistantController
 
 
-class InvisibleWindow(QWidget):
+class OverlayWindow(QWidget):
     text_received = pyqtSignal(str)
     status_changed = pyqtSignal(str)
 
@@ -14,7 +14,7 @@ class InvisibleWindow(QWidget):
         super().__init__()
         self.tray_icon = None
         self.recording = False
-        self.assistant = AIAssistant()
+        self.assistant = AssistantController()
         self.assistant.on_result(self._on_transcription_result)
         self.assistant.on_status(self._on_status_change)
 
@@ -144,5 +144,5 @@ class InvisibleWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = InvisibleWindow()
+    window = OverlayWindow()
     sys.exit(app.exec_())

@@ -1,13 +1,13 @@
 import sys
 from PyQt5.QtWidgets import QApplication
-from ui.invisible_window import InvisibleWindow
+from app.ui.overlay_window import OverlayWindow
 
 
 def main():
     print("Iniciando AYUDIN...")
 
     app = QApplication(sys.argv)
-    window = InvisibleWindow()
+    window = OverlayWindow()
 
     print("AYUDIN listo.")
     print("  - Presiona Esc para salir")

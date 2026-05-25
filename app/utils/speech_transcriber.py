@@ -3,7 +3,7 @@ import tempfile
 from typing import Optional
 
 
-class SpeechToTextEngine:
+class SpeechTranscriber:
     def __init__(self, language: str = "es", backend: str = "whisper"):
         self.language = language
         self.backend = backend
