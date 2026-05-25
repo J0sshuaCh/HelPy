@@ -1,21 +1,43 @@
-import threading
 from typing import Optional, Callable
-from app.utils.system_audio_recorder import SystemAudioRecorder
-from app.utils.speech_transcriber import SpeechTranscriber
+
+from app.utils.dual_channel_transcriber import DualChannelTranscriber
+from app.core.llm_client import LlmClient
 
 
 class AssistantController:
-    def __init__(self, stt_language: str = "es", stt_backend: str = "whisper"):
-        self.recorder = SystemAudioRecorder()
-        self.stt = SpeechTranscriber(language=stt_language, backend=stt_backend)
+    def __init__(
+        self,
+        stt_language: str = "es-ES",
+        mic_mode: str = "auto",
+        mic_energy_threshold: int = 150,
+        mic_dynamic: bool = True,
+        mic_adjust_duration: float = 0.8,
+        mic_device_index: Optional[int] = None,
+        system_device_index: Optional[int] = None,
+    ):
+        self.transcriber = DualChannelTranscriber(
+            language=stt_language,
+            mic_device_index=mic_device_index,
+            system_device_index=system_device_index,
+            mic_mode=mic_mode,
+            mic_energy_threshold=mic_energy_threshold,
+            mic_dynamic=mic_dynamic,
+            mic_adjust_duration=mic_adjust_duration,
+            on_text=self._handle_text,
+        )
         self._on_result_callback: Optional[Callable[[str], None]] = None
         self._on_status_callback: Optional[Callable[[str], None]] = None
+        self._on_llm_callback: Optional[Callable[[str], None]] = None
+        self.llm = LlmClient()
 
     def on_result(self, callback: Callable[[str], None]):
         self._on_result_callback = callback
 
     def on_status(self, callback: Callable[[str], None]):
         self._on_status_callback = callback
+
+    def on_llm_result(self, callback: Callable[[str], None]):
+        self._on_llm_callback = callback
 
     def _emit_status(self, msg: str):
         if self._on_status_callback:
@@ -24,46 +46,53 @@ class AssistantController:
 
     def start_recording(self):
         self._emit_status("Escuchando...")
-        self.recorder.start_recording()
+        self.transcriber.start()
 
     def stop_recording_and_transcribe(self):
         self._emit_status("Procesando audio...")
+        self.transcriber.stop()
 
-        def process():
-            try:
-                self.recorder.stop_recording()
-                audio_data = self.recorder.get_audio_data_resampled(16000)
-
-                if audio_data is None:
-                    text = None
-                else:
-                    if isinstance(audio_data, bytes) and len(audio_data) > 44:
-                        text = self.stt.transcribe(audio_data)
-                    else:
-                        text = None
-
-                if text:
-                    self._emit_status("Transcripción completada")
-                    if self._on_result_callback:
-                        self._on_result_callback(text)
-                else:
-                    self._emit_status("No se pudo transcribir el audio")
-
-            except Exception as e:
-                self._emit_status(f"Error: {e}")
-
-        thread = threading.Thread(target=process, daemon=True)
-        thread.start()
-
-    def transcribe_file(self, filepath: str) -> Optional[str]:
-        self._emit_status("Transcribiendo archivo...")
-        text = self.stt.transcribe_file(filepath)
+        text = self.transcriber.get_buffer_text(clear=True)
         if text:
             self._emit_status("Transcripción completada")
+            if self._on_result_callback:
+                self._on_result_callback(text)
         else:
-            self._emit_status("No se pudo transcribir")
-        return text
+            self._emit_status("No se pudo transcribir el audio")
+
+    def send_buffer_to_llm(self):
+        self._emit_status("Enviando a IA...")
+        text = self.transcriber.get_buffer_text(clear=False)
+        if not text:
+            self._emit_status("Buffer vacio")
+            return
+        respuesta = self.llm.ask(text)
+        if self._on_llm_callback:
+            self._on_llm_callback(respuesta)
 
     def cleanup(self):
-        self.recorder.cleanup()
-        self.stt.cleanup()
+        self.transcriber.stop()
+
+    def _handle_text(self, origin: str, text: str):
+        if self._on_result_callback:
+            self._on_result_callback(f"{origin}: {text}")
+
+    def set_devices(self, mic_device_index: Optional[int], system_device_index: Optional[int]):
+        self.transcriber.set_devices(mic_device_index, system_device_index)
+
+    def set_mic_settings(
+        self,
+        mic_mode: str,
+        mic_energy_threshold: int,
+        mic_dynamic: bool,
+        mic_adjust_duration: float,
+    ):
+        self.transcriber.set_mic_settings(
+            mic_mode=mic_mode,
+            mic_energy_threshold=mic_energy_threshold,
+            mic_dynamic=mic_dynamic,
+            mic_adjust_duration=mic_adjust_duration,
+        )
+
+    def supports_system_loopback(self) -> bool:
+        return self.transcriber.supports_system_loopback()
