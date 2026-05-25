@@ -1,6 +1,5 @@
 import os
 import sys
-
 # Agregamos el directorio raíz al path para que reconozca el paquete 'src'
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
