@@ -1,11 +1,19 @@
+import os
+
 from openai import OpenAI
 
 
 class LlmClient:
     def __init__(self):
+        # If you're using a local OpenAI-compatible server (e.g. LM Studio), the API key
+        # can be any non-empty string. Keep it out of source control regardless.
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("LMSTUDIO_API_KEY")
+        if not api_key:
+            api_key = "local"  # safe default for local servers that ignore auth
+
         self.client = OpenAI(
             base_url="http://localhost:1234/v1",
-            api_key="sk-lm-hRnxNXRM:630LLCj0ze3Px7xdcCc6",
+            api_key=api_key,
         )
 
     def ask(self, prompt: str) -> str:
