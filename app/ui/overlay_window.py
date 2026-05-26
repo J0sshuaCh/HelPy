@@ -37,6 +37,7 @@ class OverlayWindow(QWidget):
         self.recording = False
         self.is_collapsed = False
         self.position_mode = "center"  # "left", "center", "right"
+        self.capture_visible = False
         self.mic_devices = []
         self.sys_devices = []
         self.mic_menu = QMenu("Microfono")
@@ -83,13 +84,18 @@ class OverlayWindow(QWidget):
         self.pos_right_btn.setObjectName("edgeButton")
         self.pos_right_btn.clicked.connect(lambda: self.set_position_mode("right"))
 
+        self.capture_button = QPushButton("Oculto", self)
+        self.capture_button.setObjectName("edgeButton")
+        self.capture_button.clicked.connect(self.toggle_capture_visibility)
+
         self.edge_button = QPushButton("Retractar", self)
         self.edge_button.setObjectName("edgeButton")
         self.edge_button.clicked.connect(self.toggle_collapsed)
-        
+
         header_row.addWidget(self.pos_left_btn, 0)
         header_row.addWidget(self.pos_center_btn, 0)
         header_row.addWidget(self.pos_right_btn, 0)
+        header_row.addWidget(self.capture_button, 0)
         header_row.addWidget(self.edge_button, 0)
         outer.addLayout(header_row)
 
@@ -170,13 +176,7 @@ class OverlayWindow(QWidget):
         self.adjustSize()
         self.update_position()
 
-        if sys.platform == 'win32':
-            user32 = ctypes.windll.user32
-            WDA_EXCLUDEFROMCAPTURE = 0x00000011
-            hwnd = int(self.winId())
-            result = user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
-            if not result:
-                print("No se pudo aplicar la propiedad de exclusión de captura.")
+        self._apply_capture_affinity()
 
     def init_tray_icon(self):
         pixmap = QPixmap(16, 16)
@@ -480,6 +480,29 @@ class OverlayWindow(QWidget):
             
         self.move(x, margin)
 
+    def toggle_capture_visibility(self):
+        self.capture_visible = not self.capture_visible
+        self.settings["capture_visible"] = self.capture_visible
+        self._save_settings()
+        self._apply_capture_affinity()
+        self._update_capture_button()
+
+    def _apply_capture_affinity(self):
+        if sys.platform != "win32":
+            return
+        user32 = ctypes.windll.user32
+        WDA_NONE = 0x00000000
+        WDA_EXCLUDEFROMCAPTURE = 0x00000011
+        hwnd = int(self.winId())
+        affinity = WDA_NONE if self.capture_visible else WDA_EXCLUDEFROMCAPTURE
+        result = user32.SetWindowDisplayAffinity(hwnd, affinity)
+        if not result:
+            print("No se pudo aplicar la propiedad de exclusión de captura.")
+
+    def _update_capture_button(self):
+        if hasattr(self, "capture_button"):
+            self.capture_button.setText("Visible" if self.capture_visible else "Oculto")
+
     def toggle_collapsed(self):
         self.is_collapsed = not self.is_collapsed
         self.container.setVisible(not self.is_collapsed)
@@ -646,6 +669,10 @@ class OverlayWindow(QWidget):
             
         if "position_mode" in self.settings:
             self.position_mode = self.settings["position_mode"]
+
+        self.capture_visible = bool(self.settings.get("capture_visible", False))
+        self._update_capture_button()
+        self._apply_capture_affinity()
             
         self.show()
         self.adjustSize()
