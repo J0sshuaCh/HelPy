@@ -61,14 +61,25 @@ class AssistantController:
             self._emit_status("No se pudo transcribir el audio")
 
     def send_buffer_to_llm(self):
-        self._emit_status("Enviando a IA...")
+        self._emit_status("Enviando a IA... Procesando")
         text = self.transcriber.get_buffer_text(clear=False)
         if not text:
             self._emit_status("Buffer vacio")
             return
-        respuesta = self.llm.ask(text)
-        if self._on_llm_callback:
-            self._on_llm_callback(respuesta)
+            
+        def _process_llm():
+            try:
+                respuesta = self.llm.ask(text)
+                if self._on_llm_callback:
+                    self._on_llm_callback(respuesta)
+                self._emit_status("IA respondio correctamente")
+            except Exception as e:
+                if self._on_llm_callback:
+                    self._on_llm_callback(f"Error LLM: {e}")
+                self._emit_status("Error de IA")
+
+        import threading
+        threading.Thread(target=_process_llm, daemon=True).start()
 
     def cleanup(self):
         self.transcriber.stop()

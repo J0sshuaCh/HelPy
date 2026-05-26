@@ -36,6 +36,7 @@ class OverlayWindow(QWidget):
         self.tray_icon = None
         self.recording = False
         self.is_collapsed = False
+        self.position_mode = "center"  # "left", "center", "right"
         self.mic_devices = []
         self.sys_devices = []
         self.mic_menu = QMenu("Microfono")
@@ -69,9 +70,26 @@ class OverlayWindow(QWidget):
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
         header_row.addStretch(1)
+        
+        self.pos_left_btn = QPushButton("L", self)
+        self.pos_left_btn.setObjectName("edgeButton")
+        self.pos_left_btn.clicked.connect(lambda: self.set_position_mode("left"))
+        
+        self.pos_center_btn = QPushButton("C", self)
+        self.pos_center_btn.setObjectName("edgeButton")
+        self.pos_center_btn.clicked.connect(lambda: self.set_position_mode("center"))
+        
+        self.pos_right_btn = QPushButton("R", self)
+        self.pos_right_btn.setObjectName("edgeButton")
+        self.pos_right_btn.clicked.connect(lambda: self.set_position_mode("right"))
+
         self.edge_button = QPushButton("Retractar", self)
         self.edge_button.setObjectName("edgeButton")
         self.edge_button.clicked.connect(self.toggle_collapsed)
+        
+        header_row.addWidget(self.pos_left_btn, 0)
+        header_row.addWidget(self.pos_center_btn, 0)
+        header_row.addWidget(self.pos_right_btn, 0)
         header_row.addWidget(self.edge_button, 0)
         outer.addLayout(header_row)
 
@@ -120,12 +138,20 @@ class OverlayWindow(QWidget):
         self.transcription_text = QTextEdit(self)
         self.transcription_text.setReadOnly(True)
         self.transcription_text.setObjectName("textArea")
+        self.transcription_text.setMaximumHeight(85)  # Aprox 4 lineas
 
         self.llm_label = QLabel("Respuesta LLM", self)
         self.llm_label.setObjectName("sectionLabel")
         self.llm_text = QTextEdit(self)
         self.llm_text.setReadOnly(True)
         self.llm_text.setObjectName("textArea")
+        self.llm_text.setMinimumHeight(150)
+        
+        # Permitir que el LLM text se expanda dinamicamente
+        sizePolicy = self.llm_text.sizePolicy()
+        from PyQt5.QtWidgets import QSizePolicy
+        sizePolicy.setVerticalPolicy(QSizePolicy.Expanding)
+        self.llm_text.setSizePolicy(sizePolicy)
 
         text_layout.addWidget(self.transcription_label)
         text_layout.addWidget(self.transcription_text)
@@ -138,10 +164,11 @@ class OverlayWindow(QWidget):
 
         self._apply_styles()
         self._build_device_menus()
-
-        self.resize(900, 520)
-        self.move_to_top_center()
+        self._apply_window_size()
+        
         self.show()
+        self.adjustSize()
+        self.update_position()
 
         if sys.platform == 'win32':
             user32 = ctypes.windll.user32
@@ -216,12 +243,35 @@ class OverlayWindow(QWidget):
 
     def _set_transcription_safe(self, text: str):
         self.transcription_text.setPlainText(text)
+        scrollbar = self.transcription_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def _set_status_safe(self, msg: str):
         self.status_label.setText(f"Estado: {msg}")
 
     def _set_llm_safe(self, text: str):
         self.llm_text.setPlainText(text)
+        scrollbar = self.llm_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close()
+        if event.key() == Qt.Key_Space and event.modifiers() & Qt.ControlModifier:
+            self.toggle_recording()
+        super().keyPressEvent(event)
+
+    def closeEvent(self, event):
+        self.assistant.cleanup()
+        self.tray_icon.hide()
+        if hasattr(self, "hotkeys"):
+            self.hotkeys.stop()
+        QApplication.quit()
+
+    def quit_app(self):
+        self.assistant.cleanup()
+        self.tray_icon.hide()
+        QApplication.quit()
 
     def _build_device_menus(self):
         self.mic_menu.clear()
@@ -278,7 +328,8 @@ class OverlayWindow(QWidget):
     def _update_loopback_status(self):
         soporta = self.assistant.supports_system_loopback()
         estado = "SI" if soporta else "NO"
-        self.loopback_action.setText(f"Loopback soportado: {estado}")
+        if hasattr(self, "loopback_action"):
+            self.loopback_action.setText(f"Loopback soportado: {estado}")
 
     def set_mic_device(self, device_index: int):
         self.assistant.set_devices(device_index, self.assistant.transcriber.system_device_index)
@@ -302,7 +353,8 @@ class OverlayWindow(QWidget):
                 mic_dynamic=False,
                 mic_adjust_duration=0.0,
             )
-            self.mic_mode_action.setText("Modo microfono: Manual")
+            if hasattr(self, "mic_mode_action"):
+                self.mic_mode_action.setText("Modo microfono: Manual")
             self._set_status_safe("Modo microfono manual")
             self.settings["mic_mode"] = "manual"
             self._save_settings()
@@ -313,7 +365,8 @@ class OverlayWindow(QWidget):
                 mic_dynamic=True,
                 mic_adjust_duration=0.8,
             )
-            self.mic_mode_action.setText("Modo microfono: Auto")
+            if hasattr(self, "mic_mode_action"):
+                self.mic_mode_action.setText("Modo microfono: Auto")
             self._set_status_safe("Modo microfono auto")
             self.settings["mic_mode"] = "auto"
             self._save_settings()
@@ -334,9 +387,45 @@ class OverlayWindow(QWidget):
             "<alt_gr>+h": on_toggle_collapse,
         })
         self.hotkeys.start()
+        if self.recording:
+            self.stop_recording()
+        else:
+            self.start_recording()
 
-    def set_text(self, text):
+    def start_recording(self):
+        self.recording = True
+        self.record_action.setText("Detener grabacion")
+        self.record_action.setIcon(QIcon())
+        self.record_button.setText("Parar")
+        self.assistant.start_recording()
+
+    def stop_recording(self):
+        self.recording = False
+        self.record_action.setText("Iniciar grabacion")
+        self.record_button.setText("Grabar")
+        self.assistant.stop_recording_and_transcribe()
+
+    def _on_transcription_result(self, text: str):
+        self.text_received.emit(text)
+
+    def _on_llm_result(self, text: str):
+        self.llm_received.emit(text)
+
+    def _on_status_change(self, msg: str):
+        self.status_changed.emit(msg)
+
+    def _set_transcription_safe(self, text: str):
         self.transcription_text.setPlainText(text)
+        scrollbar = self.transcription_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def _set_status_safe(self, msg: str):
+        self.status_label.setText(f"Estado: {msg}")
+
+    def _set_llm_safe(self, text: str):
+        self.llm_text.setPlainText(text)
+        scrollbar = self.llm_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
@@ -364,6 +453,33 @@ class OverlayWindow(QWidget):
         x = int((screen.width() - w) / 2)
         self.move(x, margin)
 
+    def _apply_window_size(self):
+        screen = QApplication.primaryScreen().availableGeometry()
+        max_width = int(screen.width() * 0.40)  # Reducido al 40%
+        width = min(480, max_width)            # Maximo 480px de ancho
+        self.setFixedWidth(width)
+        self.adjustSize()
+
+    def set_position_mode(self, mode):
+        self.position_mode = mode
+        self.settings["position_mode"] = mode
+        self._save_settings()
+        self.update_position()
+
+    def update_position(self):
+        screen = QApplication.primaryScreen().availableGeometry()
+        w = self.width()
+        margin = 20
+        
+        if self.position_mode == "left":
+            x = margin
+        elif self.position_mode == "right":
+            x = screen.width() - w - margin
+        else: # center
+            x = int((screen.width() - w) / 2)
+            
+        self.move(x, margin)
+
     def toggle_collapsed(self):
         self.is_collapsed = not self.is_collapsed
         self.container.setVisible(not self.is_collapsed)
@@ -371,13 +487,13 @@ class OverlayWindow(QWidget):
         self.settings["collapsed"] = self.is_collapsed
         self._save_settings()
         self.adjustSize()
-        self.move_to_top_center()
+        self.update_position()
 
     def _apply_styles(self):
         self.setStyleSheet("""
             #overlayContainer {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(30, 34, 44, 245), stop:1 rgba(18, 20, 26, 245));
+                    stop:0 rgba(26, 40, 62, 210), stop:1 rgba(16, 24, 38, 210));
                 border: 1px solid rgba(255, 255, 255, 40);
                 border-radius: 16px;
             }
@@ -395,7 +511,7 @@ class OverlayWindow(QWidget):
                 padding-left: 4px;
             }
             #deviceCombo {
-                background-color: rgba(20, 24, 32, 235);
+                background-color: rgba(18, 28, 44, 200);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 8px;
@@ -403,7 +519,7 @@ class OverlayWindow(QWidget):
                 font-size: 12px;
             }
             #edgeButton {
-                background-color: rgba(30, 34, 44, 240);
+                background-color: rgba(26, 36, 54, 200);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 10px;
@@ -412,7 +528,7 @@ class OverlayWindow(QWidget):
                 min-height: 22px;
             }
             QPushButton {
-                background-color: rgba(32, 40, 56, 235);
+                background-color: rgba(28, 40, 62, 205);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 40);
                 border-radius: 8px;
@@ -420,15 +536,33 @@ class OverlayWindow(QWidget):
                 font-size: 12px;
             }
             QPushButton:hover {
-                background-color: rgba(46, 58, 78, 240);
+                background-color: rgba(38, 54, 82, 220);
             }
             QTextEdit#textArea {
-                background-color: rgba(16, 18, 24, 235);
+                background-color: rgba(14, 20, 34, 200);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 35);
                 border-radius: 8px;
                 padding: 8px;
                 font-size: 12px;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: rgba(10, 15, 25, 100);
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 50);
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 80);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
             }
         """)
 
@@ -509,8 +643,14 @@ class OverlayWindow(QWidget):
             self.is_collapsed = True
             self.container.setVisible(False)
             self.edge_button.setText("Expandir")
+            
+        if "position_mode" in self.settings:
+            self.position_mode = self.settings["position_mode"]
+            
+        self.show()
+        self.adjustSize()
+        self.update_position()
         self._sync_device_selection()
-        self.move_to_top_center()
 
 
 if __name__ == "__main__":
