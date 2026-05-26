@@ -13,6 +13,7 @@ class DualChannelTranscriber:
         language: str = "es-ES",
         mic_device_index: Optional[int] = None,
         system_device_index: Optional[int] = None,
+        capture_mode: str = "both",
         mic_mode: str = "auto",
         mic_energy_threshold: int = 150,
         mic_dynamic: bool = True,
@@ -24,6 +25,7 @@ class DualChannelTranscriber:
         self.language = language
         self.mic_device_index = mic_device_index
         self.system_device_index = system_device_index
+        self.capture_mode = capture_mode
         self.mic_mode = mic_mode
         self.mic_energy_threshold = mic_energy_threshold
         self.mic_dynamic = mic_dynamic
@@ -58,10 +60,31 @@ class DualChannelTranscriber:
 
     def start(self):
         if self._running:
-            return
+            return True, []
+        warnings = []
+        started_any = False
         self._running = True
-        self._start_mic()
-        self._start_system()
+
+        if self.capture_mode in ("mic", "both"):
+            try:
+                self._start_mic()
+                started_any = True
+            except Exception as exc:
+                print(f"[YO] No se pudo iniciar microfono: {exc}")
+                warnings.append("No se pudo iniciar el microfono")
+
+        if self.capture_mode in ("system", "both"):
+            try:
+                self._start_system()
+                started_any = True
+            except Exception as exc:
+                print(f"[SISTEMA] No se pudo iniciar audio del sistema: {exc}")
+                warnings.append("No se pudo iniciar el audio del sistema")
+
+        if not started_any:
+            self._running = False
+            warnings.append("No se pudo iniciar ninguna fuente de audio")
+        return started_any, warnings
 
     def stop(self):
         if not self._running:
@@ -82,6 +105,20 @@ class DualChannelTranscriber:
     def set_devices(self, mic_device_index: Optional[int], system_device_index: Optional[int]):
         self.mic_device_index = mic_device_index
         self.system_device_index = system_device_index
+
+    def set_capture_mode(self, capture_mode: str):
+        if capture_mode not in ("mic", "system", "both"):
+            return True, [], self._running
+        if capture_mode == self.capture_mode:
+            return True, [], self._running
+
+        was_running = self._running
+        self.capture_mode = capture_mode
+        if was_running:
+            self.stop()
+            started, warnings = self.start()
+            return started, warnings, True
+        return True, [], False
 
     def set_mic_settings(
         self,

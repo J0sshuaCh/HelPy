@@ -15,13 +15,15 @@ from PyQt5.QtWidgets import (
     QSystemTrayIcon,
     QMenu,
     QAction,
+    QActionGroup,
     QPushButton,
     QComboBox,
     QTextEdit,
     QFrame,
+    QButtonGroup,
 )
-from PyQt5.QtCore import Qt, QRect, pyqtSignal
-from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor
+from PyQt5.QtCore import Qt, QRect, pyqtSignal, QSize
+from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor, QPainter, QFont
 
 from app.core.assistant_controller import AssistantController
 
@@ -43,7 +45,12 @@ class OverlayWindow(QWidget):
         self.mic_menu = QMenu("Microfono")
         self.sys_menu = QMenu("Sistema")
         self.settings = self._load_settings()
-        self.assistant = AssistantController(mic_device_index=None, system_device_index=None)
+        self.capture_mode = self.settings.get("capture_mode", "both")
+        self.assistant = AssistantController(
+            mic_device_index=None,
+            system_device_index=None,
+            capture_mode=self.capture_mode,
+        )
         self.assistant.on_result(self._on_transcription_result)
         self.assistant.on_status(self._on_status_change)
         self.assistant.on_llm_result(self._on_llm_result)
@@ -74,22 +81,42 @@ class OverlayWindow(QWidget):
         
         self.pos_left_btn = QPushButton("L", self)
         self.pos_left_btn.setObjectName("edgeButton")
+        self.pos_left_btn.setIcon(self._icon("arrow_left"))
+        self.pos_left_btn.setIconSize(QSize(14, 14))
+        self.pos_left_btn.setText("")
+        self.pos_left_btn.setToolTip("Izquierda")
         self.pos_left_btn.clicked.connect(lambda: self.set_position_mode("left"))
         
         self.pos_center_btn = QPushButton("C", self)
         self.pos_center_btn.setObjectName("edgeButton")
+        self.pos_center_btn.setIcon(self._icon("arrow_up"))
+        self.pos_center_btn.setIconSize(QSize(14, 14))
+        self.pos_center_btn.setText("")
+        self.pos_center_btn.setToolTip("Centro")
         self.pos_center_btn.clicked.connect(lambda: self.set_position_mode("center"))
         
         self.pos_right_btn = QPushButton("R", self)
         self.pos_right_btn.setObjectName("edgeButton")
+        self.pos_right_btn.setIcon(self._icon("arrow_right"))
+        self.pos_right_btn.setIconSize(QSize(14, 14))
+        self.pos_right_btn.setText("")
+        self.pos_right_btn.setToolTip("Derecha")
         self.pos_right_btn.clicked.connect(lambda: self.set_position_mode("right"))
 
         self.capture_button = QPushButton("Oculto", self)
         self.capture_button.setObjectName("edgeButton")
+        self.capture_button.setIcon(self._icon("eye_off"))
+        self.capture_button.setIconSize(QSize(14, 14))
+        self.capture_button.setText("")
+        self.capture_button.setToolTip("Oculto en captura")
         self.capture_button.clicked.connect(self.toggle_capture_visibility)
 
         self.edge_button = QPushButton("Retractar", self)
         self.edge_button.setObjectName("edgeButton")
+        self.edge_button.setIcon(self._icon("collapse"))
+        self.edge_button.setIconSize(QSize(14, 14))
+        self.edge_button.setText("")
+        self.edge_button.setToolTip("Retractar")
         self.edge_button.clicked.connect(self.toggle_collapsed)
 
         header_row.addWidget(self.pos_left_btn, 0)
@@ -116,6 +143,45 @@ class OverlayWindow(QWidget):
         device_row.addWidget(self.sys_combo, 1)
         container_layout.addLayout(device_row)
 
+        capture_row = QHBoxLayout()
+        capture_row.setSpacing(10)
+
+        self.capture_mode_group = QButtonGroup(self)
+        self.capture_mode_group.setExclusive(True)
+
+        self.capture_mic_btn = QPushButton("Mic", self)
+        self.capture_mic_btn.setObjectName("modeButton")
+        self.capture_mic_btn.setCheckable(True)
+        self.capture_mic_btn.setIcon(self._icon("mic"))
+        self.capture_mic_btn.setIconSize(QSize(16, 16))
+        self.capture_mic_btn.setToolTip("Solo microfono")
+        self.capture_mic_btn.clicked.connect(lambda: self.set_capture_mode("mic"))
+
+        self.capture_sys_btn = QPushButton("Equipo", self)
+        self.capture_sys_btn.setObjectName("modeButton")
+        self.capture_sys_btn.setCheckable(True)
+        self.capture_sys_btn.setIcon(self._icon("monitor"))
+        self.capture_sys_btn.setIconSize(QSize(16, 16))
+        self.capture_sys_btn.setToolTip("Solo audio del equipo")
+        self.capture_sys_btn.clicked.connect(lambda: self.set_capture_mode("system"))
+
+        self.capture_both_btn = QPushButton("Ambos", self)
+        self.capture_both_btn.setObjectName("modeButton")
+        self.capture_both_btn.setCheckable(True)
+        self.capture_both_btn.setIcon(self._icon("mic_monitor"))
+        self.capture_both_btn.setIconSize(QSize(16, 16))
+        self.capture_both_btn.setToolTip("Microfono y sistema")
+        self.capture_both_btn.clicked.connect(lambda: self.set_capture_mode("both"))
+
+        self.capture_mode_group.addButton(self.capture_mic_btn)
+        self.capture_mode_group.addButton(self.capture_sys_btn)
+        self.capture_mode_group.addButton(self.capture_both_btn)
+
+        capture_row.addWidget(self.capture_mic_btn, 1)
+        capture_row.addWidget(self.capture_sys_btn, 1)
+        capture_row.addWidget(self.capture_both_btn, 1)
+        container_layout.addLayout(capture_row)
+
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
         self.record_button = QPushButton("Grabar", self)
@@ -132,6 +198,11 @@ class OverlayWindow(QWidget):
         self.status_label = QLabel("Estado: listo", self)
         self.status_label.setObjectName("statusLabel")
         container_layout.addWidget(self.status_label)
+
+        self.warning_label = QLabel("", self)
+        self.warning_label.setObjectName("warningLabel")
+        self.warning_label.setVisible(False)
+        container_layout.addWidget(self.warning_label)
 
         self.text_container = QFrame(self)
         text_layout = QVBoxLayout()
@@ -151,13 +222,13 @@ class OverlayWindow(QWidget):
         self.llm_text = QTextEdit(self)
         self.llm_text.setReadOnly(True)
         self.llm_text.setObjectName("textArea")
-        self.llm_text.setMinimumHeight(150)
+        self._llm_min_height = 60
+        self._llm_max_height = 260
+        self.llm_text.setMinimumHeight(self._llm_min_height)
+        self.llm_text.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         
-        # Permitir que el LLM text se expanda dinamicamente
-        sizePolicy = self.llm_text.sizePolicy()
-        from PyQt5.QtWidgets import QSizePolicy
-        sizePolicy.setVerticalPolicy(QSizePolicy.Expanding)
-        self.llm_text.setSizePolicy(sizePolicy)
+        self.llm_text.document().contentsChanged.connect(self._update_llm_height)
+        self._update_llm_height()
 
         text_layout.addWidget(self.transcription_label)
         text_layout.addWidget(self.transcription_text)
@@ -201,6 +272,36 @@ class OverlayWindow(QWidget):
 
         self.loopback_action = menu.addAction("Loopback soportado: ?")
         self.loopback_action.setEnabled(False)
+
+        capture_mode_action = menu.addAction("Modo captura")
+        capture_mode_menu = QMenu()
+        capture_mode_action.setMenu(capture_mode_menu)
+
+        self.capture_mode_group_tray = QActionGroup(self)
+        self.capture_mode_group_tray.setExclusive(True)
+
+        self.capture_mode_mic_action = QAction("Microfono", self)
+        self.capture_mode_mic_action.setCheckable(True)
+        self.capture_mode_mic_action.setIcon(self._icon("mic"))
+        self.capture_mode_mic_action.triggered.connect(lambda: self.set_capture_mode("mic"))
+
+        self.capture_mode_sys_action = QAction("Equipo", self)
+        self.capture_mode_sys_action.setCheckable(True)
+        self.capture_mode_sys_action.setIcon(self._icon("monitor"))
+        self.capture_mode_sys_action.triggered.connect(lambda: self.set_capture_mode("system"))
+
+        self.capture_mode_both_action = QAction("Ambos", self)
+        self.capture_mode_both_action.setCheckable(True)
+        self.capture_mode_both_action.setIcon(self._icon("mic_monitor"))
+        self.capture_mode_both_action.triggered.connect(lambda: self.set_capture_mode("both"))
+
+        self.capture_mode_group_tray.addAction(self.capture_mode_mic_action)
+        self.capture_mode_group_tray.addAction(self.capture_mode_sys_action)
+        self.capture_mode_group_tray.addAction(self.capture_mode_both_action)
+
+        capture_mode_menu.addAction(self.capture_mode_mic_action)
+        capture_mode_menu.addAction(self.capture_mode_sys_action)
+        capture_mode_menu.addAction(self.capture_mode_both_action)
 
         mic_mode_action = menu.addAction("Modo microfono: Auto")
         mic_mode_action.triggered.connect(self.toggle_mic_mode)
@@ -248,11 +349,14 @@ class OverlayWindow(QWidget):
 
     def _set_status_safe(self, msg: str):
         self.status_label.setText(f"Estado: {msg}")
+        if msg.startswith("No se pudo") or msg.startswith("Error"):
+            self._set_warning(msg)
 
     def _set_llm_safe(self, text: str):
         self.llm_text.setPlainText(text)
         scrollbar = self.llm_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+        self._update_llm_height()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
@@ -324,6 +428,7 @@ class OverlayWindow(QWidget):
         self.mic_combo.blockSignals(False)
         self.sys_combo.blockSignals(False)
         self._sync_device_selection()
+        self._update_capture_mode_warning()
 
     def _update_loopback_status(self):
         soporta = self.assistant.supports_system_loopback()
@@ -337,6 +442,7 @@ class OverlayWindow(QWidget):
         self.settings["mic_device_index"] = device_index
         self._save_settings()
         self._sync_device_selection()
+        self._update_capture_mode_warning()
 
     def set_sys_device(self, device_index: int):
         self.assistant.set_devices(self.assistant.transcriber.mic_device_index, device_index)
@@ -344,6 +450,7 @@ class OverlayWindow(QWidget):
         self.settings["system_device_index"] = device_index
         self._save_settings()
         self._sync_device_selection()
+        self._update_capture_mode_warning()
 
     def toggle_mic_mode(self):
         if self.assistant.transcriber.mic_mode == "auto":
@@ -501,12 +608,26 @@ class OverlayWindow(QWidget):
 
     def _update_capture_button(self):
         if hasattr(self, "capture_button"):
-            self.capture_button.setText("Visible" if self.capture_visible else "Oculto")
+            if self.capture_visible:
+                self.capture_button.setIcon(self._icon("eye"))
+                self.capture_button.setIconSize(QSize(14, 14))
+                self.capture_button.setToolTip("Visible en captura")
+            else:
+                self.capture_button.setIcon(self._icon("eye_off"))
+                self.capture_button.setIconSize(QSize(14, 14))
+                self.capture_button.setToolTip("Oculto en captura")
 
     def toggle_collapsed(self):
         self.is_collapsed = not self.is_collapsed
         self.container.setVisible(not self.is_collapsed)
-        self.edge_button.setText("Expandir" if self.is_collapsed else "Retractar")
+        if self.is_collapsed:
+            self.edge_button.setIcon(self._icon("expand"))
+            self.edge_button.setIconSize(QSize(14, 14))
+            self.edge_button.setToolTip("Expandir")
+        else:
+            self.edge_button.setIcon(self._icon("collapse"))
+            self.edge_button.setIconSize(QSize(14, 14))
+            self.edge_button.setToolTip("Retractar")
         self.settings["collapsed"] = self.is_collapsed
         self._save_settings()
         self.adjustSize()
@@ -514,6 +635,9 @@ class OverlayWindow(QWidget):
 
     def _apply_styles(self):
         self.setStyleSheet("""
+            QWidget {
+                font-family: "Cascadia Mono", "Consolas", "Lucida Console", "Courier New", monospace;
+            }
             #overlayContainer {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 rgba(26, 40, 62, 210), stop:1 rgba(16, 24, 38, 210));
@@ -550,6 +674,19 @@ class OverlayWindow(QWidget):
                 font-size: 11px;
                 min-height: 22px;
             }
+            #modeButton {
+                background-color: rgba(20, 30, 46, 200);
+                color: #e5e7eb;
+                border: 1px solid rgba(255, 255, 255, 40);
+                border-radius: 10px;
+                padding: 6px 10px;
+                font-size: 11px;
+                min-height: 24px;
+            }
+            #modeButton:checked {
+                background-color: rgba(40, 58, 88, 230);
+                border-color: rgba(255, 255, 255, 80);
+            }
             QPushButton {
                 background-color: rgba(28, 40, 62, 205);
                 color: #e5e7eb;
@@ -568,6 +705,10 @@ class OverlayWindow(QWidget):
                 border-radius: 8px;
                 padding: 8px;
                 font-size: 12px;
+            }
+            #warningLabel {
+                color: #fbbf24;
+                font-size: 11px;
             }
             QScrollBar:vertical {
                 border: none;
@@ -640,6 +781,7 @@ class OverlayWindow(QWidget):
         sys_index = self.settings.get("system_device_index")
         collapsed = self.settings.get("collapsed", False)
         mic_mode = self.settings.get("mic_mode")
+        capture_mode = self.settings.get("capture_mode", "both")
         if mic_index is not None:
             self.assistant.set_devices(mic_index, self.assistant.transcriber.system_device_index)
         if sys_index is not None:
@@ -665,7 +807,9 @@ class OverlayWindow(QWidget):
         if collapsed:
             self.is_collapsed = True
             self.container.setVisible(False)
-            self.edge_button.setText("Expandir")
+            self.edge_button.setIcon(self._icon("expand"))
+            self.edge_button.setIconSize(QSize(14, 14))
+            self.edge_button.setToolTip("Expandir")
             
         if "position_mode" in self.settings:
             self.position_mode = self.settings["position_mode"]
@@ -673,11 +817,149 @@ class OverlayWindow(QWidget):
         self.capture_visible = bool(self.settings.get("capture_visible", False))
         self._update_capture_button()
         self._apply_capture_affinity()
+
+        self.capture_mode = capture_mode
+        self.assistant.set_capture_mode(self.capture_mode)
+        self._set_capture_mode_ui(self.capture_mode)
+        self._update_capture_mode_warning()
             
         self.show()
         self.adjustSize()
         self.update_position()
         self._sync_device_selection()
+
+    def set_capture_mode(self, mode: str):
+        if mode not in ("mic", "system", "both"):
+            return
+        self.capture_mode = mode
+        self.settings["capture_mode"] = mode
+        self._save_settings()
+        self.assistant.set_capture_mode(mode)
+        self._set_capture_mode_ui(mode)
+        self._update_capture_mode_warning()
+
+    def _set_capture_mode_ui(self, mode: str):
+        if hasattr(self, "capture_mic_btn"):
+            self.capture_mic_btn.setChecked(mode == "mic")
+        if hasattr(self, "capture_sys_btn"):
+            self.capture_sys_btn.setChecked(mode == "system")
+        if hasattr(self, "capture_both_btn"):
+            self.capture_both_btn.setChecked(mode == "both")
+        if hasattr(self, "capture_mode_mic_action"):
+            self.capture_mode_mic_action.setChecked(mode == "mic")
+        if hasattr(self, "capture_mode_sys_action"):
+            self.capture_mode_sys_action.setChecked(mode == "system")
+        if hasattr(self, "capture_mode_both_action"):
+            self.capture_mode_both_action.setChecked(mode == "both")
+
+    def _set_warning(self, message: str):
+        if not message:
+            self.warning_label.setVisible(False)
+            self.warning_label.setText("")
+            return
+        texto = message if message.startswith("Advertencia") else f"Advertencia: {message}"
+        self.warning_label.setText(texto)
+        self.warning_label.setVisible(True)
+
+    def _system_audio_available(self) -> bool:
+        try:
+            devices = sd.query_devices()
+            hostapis = sd.query_hostapis()
+        except Exception:
+            return False
+
+        supports_loopback = self.assistant.supports_system_loopback()
+        if supports_loopback:
+            for info in devices:
+                api = hostapis[info.get("hostapi", 0)].get("name", "")
+                if "WASAPI" in api and info.get("max_output_channels", 0) > 0:
+                    return True
+            return False
+
+        for info in devices:
+            api = hostapis[info.get("hostapi", 0)].get("name", "")
+            if "WASAPI" in api and info.get("max_input_channels", 0) > 0:
+                return True
+        return False
+
+    def _mic_available(self) -> bool:
+        try:
+            devices = sd.query_devices()
+        except Exception:
+            return False
+        for info in devices:
+            if info.get("max_input_channels", 0) > 0:
+                return True
+        return False
+
+    def _update_capture_mode_warning(self):
+        if self.capture_mode == "mic":
+            if not self._mic_available():
+                self._set_warning("Microfono no disponible")
+            else:
+                self._set_warning("")
+            return
+
+        if self.capture_mode == "system":
+            if not self._system_audio_available():
+                self._set_warning("Audio del equipo no disponible")
+            else:
+                self._set_warning("")
+            return
+
+        if self.capture_mode == "both":
+            mic_ok = self._mic_available()
+            sys_ok = self._system_audio_available()
+            if not mic_ok and not sys_ok:
+                self._set_warning("Microfono y audio del equipo no disponibles")
+            elif not mic_ok:
+                self._set_warning("Microfono no disponible")
+            elif not sys_ok:
+                self._set_warning("Audio del equipo no disponible")
+            else:
+                self._set_warning("")
+
+    def _update_llm_height(self):
+        if not hasattr(self, "llm_text"):
+            return
+        doc_height = int(self.llm_text.document().size().height())
+        padding = self.llm_text.frameWidth() * 2 + 12
+        desired = doc_height + padding
+        if desired < self._llm_min_height:
+            desired = self._llm_min_height
+        if desired > self._llm_max_height:
+            desired = self._llm_max_height
+        self.llm_text.setFixedHeight(desired)
+        self.adjustSize()
+        self.update_position()
+
+    def _mode_icon(self, text: str, color: QColor) -> QIcon:
+        return self._text_icon(text, color)
+
+    def _text_icon(self, text: str, color: QColor) -> QIcon:
+        size = 16
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(color)
+        font = QFont()
+        font.setPointSize(8)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(pixmap.rect(), Qt.AlignCenter, text)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _icon(self, name: str) -> QIcon:
+        path = self._asset_path(os.path.join("icons", f"{name}.svg"))
+        if os.path.exists(path):
+            return QIcon(path)
+        return QIcon()
+
+    def _asset_path(self, relative: str) -> str:
+        base = os.path.join(os.path.dirname(__file__), "..", "assets")
+        return os.path.abspath(os.path.join(base, relative))
 
 
 if __name__ == "__main__":

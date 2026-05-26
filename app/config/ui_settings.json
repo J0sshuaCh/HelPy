@@ -1,7 +1,8 @@
 {
   "mic_device_index": 2,
   "system_device_index": 14,
-  "collapsed": true,
+  "collapsed": false,
   "position_mode": "right",
-  "capture_visible": false
+  "capture_visible": true,
+  "capture_mode": "mic"
 }

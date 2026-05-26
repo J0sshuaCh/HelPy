@@ -21,20 +21,6 @@ class LlmClient:
                 ],
                 temperature=0.7,
             )
-            contenido = respuesta.choices[0].message.content
-            if contenido:
-                return contenido
-        except Exception:
-            pass
-
-        try:
-            respuesta = self.client.completions.create(
-                model="local-model",
-                prompt=prompt,
-                temperature=0.7,
-                max_tokens=512,
-            )
-            texto = respuesta.choices[0].text
-            return texto.strip() if texto else ""
+            return respuesta.choices[0].message.content
         except Exception as e:
             return f"Error conectando con LM Studio: {e}"

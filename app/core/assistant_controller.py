@@ -8,6 +8,7 @@ class AssistantController:
     def __init__(
         self,
         stt_language: str = "es-ES",
+        capture_mode: str = "both",
         mic_mode: str = "auto",
         mic_energy_threshold: int = 150,
         mic_dynamic: bool = True,
@@ -19,6 +20,7 @@ class AssistantController:
             language=stt_language,
             mic_device_index=mic_device_index,
             system_device_index=system_device_index,
+            capture_mode=capture_mode,
             mic_mode=mic_mode,
             mic_energy_threshold=mic_energy_threshold,
             mic_dynamic=mic_dynamic,
@@ -45,8 +47,13 @@ class AssistantController:
         print(msg)
 
     def start_recording(self):
-        self._emit_status("Escuchando...")
-        self.transcriber.start()
+        started, warnings = self.transcriber.start()
+        if started:
+            self._emit_status("Escuchando...")
+        else:
+            self._emit_status("No se pudo iniciar la grabacion")
+        for warning in warnings:
+            self._emit_status(warning)
 
     def stop_recording_and_transcribe(self):
         self._emit_status("Procesando audio...")
@@ -90,6 +97,16 @@ class AssistantController:
 
     def set_devices(self, mic_device_index: Optional[int], system_device_index: Optional[int]):
         self.transcriber.set_devices(mic_device_index, system_device_index)
+
+    def set_capture_mode(self, capture_mode: str):
+        started, warnings, was_running = self.transcriber.set_capture_mode(capture_mode)
+        if was_running:
+            if started:
+                self._emit_status("Modo actualizado")
+            else:
+                self._emit_status("No se pudo iniciar la fuente seleccionada")
+        for warning in warnings:
+            self._emit_status(warning)
 
     def set_mic_settings(
         self,
