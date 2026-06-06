@@ -5,6 +5,7 @@ import json
 import os
 
 import sounddevice as sd
+import soundcard as sc
 from pynput import keyboard
 from PyQt5.QtWidgets import (
     QWidget,
@@ -21,11 +22,15 @@ from PyQt5.QtWidgets import (
     QTextEdit,
     QFrame,
     QButtonGroup,
+    QLineEdit,
+    QFormLayout,
+    QFileDialog,
 )
 from PyQt5.QtCore import Qt, QRect, pyqtSignal, QSize
 from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor, QPainter, QFont
 
 from app.core.assistant_controller import AssistantController
+from app.core.llm_client import get_llm_client
 
 
 class OverlayWindow(QWidget):
@@ -40,11 +45,12 @@ class OverlayWindow(QWidget):
         self.is_collapsed = False
         self.position_mode = "center"  # "left", "center", "right"
         self.capture_visible = False
+        self.settings = self._load_settings()
+        self.llm_config_collapsed = bool(self.settings.get("llm_config_collapsed", True))
         self.mic_devices = []
         self.sys_devices = []
         self.mic_menu = QMenu("Microfono")
         self.sys_menu = QMenu("Sistema")
-        self.settings = self._load_settings()
         self.capture_mode = self.settings.get("capture_mode", "both")
         self.assistant = AssistantController(
             mic_device_index=None,
@@ -204,6 +210,65 @@ class OverlayWindow(QWidget):
         self.warning_label.setVisible(False)
         container_layout.addWidget(self.warning_label)
 
+        # AI Configuration Section
+        ai_config_group = QFrame(self)
+        ai_config_group.setObjectName("aiConfigGroup")
+        ai_config_layout = QVBoxLayout()
+        ai_config_layout.setContentsMargins(0, 0, 0, 0)
+        ai_config_group.setLayout(ai_config_layout)
+
+        ai_header_row = QHBoxLayout()
+        ai_header_row.setContentsMargins(0, 0, 0, 0)
+        self.llm_toggle_button = QPushButton("Configurar LLM:", self)
+        self.llm_toggle_button.setObjectName("sectionToggle")
+        self.llm_toggle_button.clicked.connect(self.toggle_llm_config)
+        ai_header_row.addWidget(self.llm_toggle_button, 0)
+        ai_header_row.addStretch(1)
+        ai_config_layout.addLayout(ai_header_row)
+
+        self.ai_config_body = QFrame(self)
+        self.ai_config_body.setObjectName("aiConfigBody")
+        ai_form_layout = QFormLayout()
+        ai_form_layout.setSpacing(10)
+        ai_form_layout.setContentsMargins(10, 5, 10, 10)
+
+        self.ai_provider_combo = QComboBox(self)
+        self.ai_provider_combo.addItems(["LM Studio", "Google", "Groq", "Local (llama.cpp)"])
+        ai_form_layout.addRow("Proveedor:", self.ai_provider_combo)
+
+        self.api_key_input = QLineEdit(self)
+        self.api_key_input.setEchoMode(QLineEdit.Password)
+        ai_form_layout.addRow("API Key:", self.api_key_input)
+
+        self.model_id_input = QLineEdit(self)
+        self.model_id_input.setPlaceholderText("Opcional: openai/gpt-oss-120b")
+        model_container = QWidget(self)
+        model_row = QHBoxLayout(model_container)
+        model_row.setContentsMargins(0, 0, 0, 0)
+        model_row.addWidget(self.model_id_input, 1)
+        self.browse_model_btn = QPushButton("Examinar...", self)
+        self.browse_model_btn.clicked.connect(self._browse_model)
+        model_row.addWidget(self.browse_model_btn, 0)
+        ai_form_layout.addRow("Model ID:", model_container)
+
+        ai_button_row = QHBoxLayout()
+        self.save_ai_button = QPushButton("Guardar", self)
+        self.save_ai_button.clicked.connect(self._save_ai_settings)
+        self.ai_status_label = QLabel("", self)
+        self.ai_status_label.setObjectName("statusLabel")
+        ai_button_row.addWidget(self.ai_status_label)
+        ai_button_row.addStretch(1)
+        ai_button_row.addWidget(self.save_ai_button)
+
+        body_layout = QVBoxLayout()
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.addLayout(ai_form_layout)
+        body_layout.addLayout(ai_button_row)
+        self.ai_config_body.setLayout(body_layout)
+        ai_config_layout.addWidget(self.ai_config_body)
+
+        container_layout.addWidget(ai_config_group)
+
         self.text_container = QFrame(self)
         text_layout = QVBoxLayout()
         text_layout.setContentsMargins(0, 0, 0, 0)
@@ -239,6 +304,9 @@ class OverlayWindow(QWidget):
         outer.addWidget(self.container)
         self.setLayout(outer)
 
+        self._load_ai_settings()
+        self.ai_provider_combo.currentIndexChanged.connect(self._on_ai_provider_changed)
+        self._apply_llm_config_visibility()
         self._apply_styles()
         self._build_device_menus()
         self._apply_window_size()
@@ -397,7 +465,8 @@ class OverlayWindow(QWidget):
 
         devices = sd.query_devices()
         hostapis = sd.query_hostapis()
-        soporta_loopback = self.assistant.supports_system_loopback()
+        
+        # Llenar Microfono con sounddevice (como antes)
         for i, info in enumerate(devices):
             name = info.get("name", "Desconocido")
             api = hostapis[info.get("hostapi", 0)].get("name", "?")
@@ -408,20 +477,16 @@ class OverlayWindow(QWidget):
                 self.mic_menu.addAction(action)
                 self.mic_combo.addItem(f"Microfono: {name} ({api})")
                 self.mic_devices.append(i)
-            if soporta_loopback:
-                if info.get("max_output_channels", 0) > 0:
-                    action = QAction(label, self)
-                    action.triggered.connect(lambda checked, idx=i: self.set_sys_device(idx))
-                    self.sys_menu.addAction(action)
-                    self.sys_combo.addItem(f"Sistema: {name} ({api})")
-                    self.sys_devices.append(i)
-            else:
-                if info.get("max_input_channels", 0) > 0:
-                    action = QAction(label, self)
-                    action.triggered.connect(lambda checked, idx=i: self.set_sys_device(idx))
-                    self.sys_menu.addAction(action)
-                    self.sys_combo.addItem(f"Sistema: {name} ({api})")
-                    self.sys_devices.append(i)
+
+        # Llenar Sistema con soundcard (salidas fisicas)
+        speakers = sc.all_speakers()
+        for i, s in enumerate(speakers):
+            label = f"Salida: {s.name}"
+            action = QAction(label, self)
+            action.triggered.connect(lambda checked, idx=i: self.set_sys_device(idx))
+            self.sys_menu.addAction(action)
+            self.sys_combo.addItem(label)
+            self.sys_devices.append(i)
 
         self.mic_combo.currentIndexChanged.connect(self._on_mic_combo_changed)
         self.sys_combo.currentIndexChanged.connect(self._on_sys_combo_changed)
@@ -494,10 +559,7 @@ class OverlayWindow(QWidget):
             "<alt_gr>+h": on_toggle_collapse,
         })
         self.hotkeys.start()
-        if self.recording:
-            self.stop_recording()
-        else:
-            self.start_recording()
+
 
     def start_recording(self):
         self.recording = True
@@ -577,14 +639,14 @@ class OverlayWindow(QWidget):
         screen = QApplication.primaryScreen().availableGeometry()
         w = self.width()
         margin = 20
-        
+
         if self.position_mode == "left":
             x = margin
         elif self.position_mode == "right":
             x = screen.width() - w - margin
         else: # center
             x = int((screen.width() - w) / 2)
-            
+
         self.move(x, margin)
 
     def toggle_capture_visibility(self):
@@ -664,6 +726,19 @@ class OverlayWindow(QWidget):
                 border-radius: 8px;
                 padding: 6px 8px;
                 font-size: 12px;
+            }
+            #sectionToggle {
+                background-color: rgba(26, 36, 54, 200);
+                color: #e5e7eb;
+                border: 1px solid rgba(255, 255, 255, 40);
+                border-radius: 10px;
+                padding: 6px 10px;
+                font-size: 11px;
+                min-height: 24px;
+                text-align: left;
+            }
+            #sectionToggle:hover {
+                background-color: rgba(38, 54, 82, 220);
             }
             #edgeButton {
                 background-color: rgba(26, 36, 54, 200);
@@ -753,8 +828,7 @@ class OverlayWindow(QWidget):
             self.sys_combo.blockSignals(False)
 
     def _config_path(self):
-        base = os.path.join(os.path.dirname(__file__), "..", "config")
-        return os.path.abspath(os.path.join(base, "ui_settings.json"))
+        return self._get_config_path("ui_settings.json")
 
     def _load_settings(self):
         path = self._config_path()
@@ -775,6 +849,109 @@ class OverlayWindow(QWidget):
                 json.dump(self.settings, handle, indent=2)
         except OSError:
             pass
+
+    def _get_config_path(self, filename="config.json"):
+        base = os.path.join(os.path.dirname(__file__), "..", "config")
+        return os.path.abspath(os.path.join(base, filename))
+
+    def _on_ai_provider_changed(self, index):
+        provider = self.ai_provider_combo.currentText()
+        if provider == "Local (llama.cpp)":
+            self.api_key_input.setVisible(False)
+            self.model_id_input.setPlaceholderText("Ruta al modelo .gguf")
+            self.browse_model_btn.setVisible(True)
+        else:
+            self.api_key_input.setVisible(True)
+            self.browse_model_btn.setVisible(False)
+            if provider == "Groq":
+                self.model_id_input.setPlaceholderText("Opcional: openai/gpt-oss-120b")
+            elif provider == "Google":
+                self.model_id_input.setPlaceholderText("gemini-2.0-flash")
+            else:
+                self.model_id_input.setPlaceholderText("ID del modelo")
+
+    def _load_ai_settings(self):
+        path = self._get_config_path()
+        if not os.path.exists(path):
+            return
+
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                ai_settings = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return
+
+        # Normalize: "Local" in config → "Local (llama.cpp)" in UI combo
+        provider_raw = ai_settings.get("provider", "LM Studio")
+        provider = "Local (llama.cpp)" if provider_raw == "Local" else provider_raw
+        api_key = ai_settings.get("api_key", "")
+        model_id = ai_settings.get("model_id", "")
+
+        self.ai_provider_combo.setCurrentText(provider)
+        self.api_key_input.setText(api_key)
+        self.model_id_input.setText(model_id)
+
+        if provider == "Local (llama.cpp)":
+            self.api_key_input.setVisible(False)
+            self.model_id_input.setPlaceholderText("Ruta al modelo .gguf")
+            self.browse_model_btn.setVisible(True)
+        else:
+            self.api_key_input.setVisible(True)
+            self.browse_model_btn.setVisible(False)
+
+    def _save_ai_settings(self):
+        path = self._get_config_path()
+        folder = os.path.dirname(path)
+        os.makedirs(folder, exist_ok=True)
+
+        provider = self.ai_provider_combo.currentText()
+        api_key = self.api_key_input.text()
+        model_id = self.model_id_input.text().strip()
+
+        # Normalize: "Local (llama.cpp)" in UI → "Local" in config
+        if provider == "Local (llama.cpp)":
+            provider = "Local"
+        if provider == "Google" and not model_id:
+            model_id = "gemini-2.0-flash"
+        if provider == "Groq" and not model_id:
+            model_id = "openai/gpt-oss-120b"
+
+        ai_settings = {
+            "provider": provider,
+            "api_key": api_key,
+            "model_id": model_id,
+        }
+
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(ai_settings, handle, indent=2)
+            self.ai_status_label.setText("Guardado!")
+            # Reload the LLM client with the new settings
+            get_llm_client().reload()
+        except OSError:
+            self.ai_status_label.setText("Error!")
+
+    def _browse_model(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar modelo GGUF", "", "Modelos GGUF (*.gguf)"
+        )
+        if path:
+            self.model_id_input.setText(path)
+
+    def toggle_llm_config(self):
+        self.llm_config_collapsed = not self.llm_config_collapsed
+        self.settings["llm_config_collapsed"] = self.llm_config_collapsed
+        self._save_settings()
+        self._apply_llm_config_visibility()
+
+    def _apply_llm_config_visibility(self):
+        if hasattr(self, "ai_config_body"):
+            self.ai_config_body.setVisible(not self.llm_config_collapsed)
+        if hasattr(self, "llm_toggle_button"):
+            self.llm_toggle_button.setIcon(self._icon("expand") if self.llm_config_collapsed else self._icon("collapse"))
+        self.adjustSize()
+        self.update_position()
+
 
     def _apply_settings(self):
         mic_index = self.settings.get("mic_device_index")
@@ -863,24 +1040,9 @@ class OverlayWindow(QWidget):
 
     def _system_audio_available(self) -> bool:
         try:
-            devices = sd.query_devices()
-            hostapis = sd.query_hostapis()
+            return len(sc.all_speakers()) > 0
         except Exception:
             return False
-
-        supports_loopback = self.assistant.supports_system_loopback()
-        if supports_loopback:
-            for info in devices:
-                api = hostapis[info.get("hostapi", 0)].get("name", "")
-                if "WASAPI" in api and info.get("max_output_channels", 0) > 0:
-                    return True
-            return False
-
-        for info in devices:
-            api = hostapis[info.get("hostapi", 0)].get("name", "")
-            if "WASAPI" in api and info.get("max_input_channels", 0) > 0:
-                return True
-        return False
 
     def _mic_available(self) -> bool:
         try:

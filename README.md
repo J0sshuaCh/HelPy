@@ -30,7 +30,18 @@ Notas:
 - install.ps1 crea .venv en la raíz del proyecto y ejecuta pip install -r requirements.txt.
 - run.ps1 activará .venv si existe. Si no existe, llamará a install.ps1 para crearla e instalar las dependencias.
 
-Consejos
+## Instalación de Modelos
+Este proyecto requiere el modelo Gemma 3 (GGUF), que no se incluye en el repositorio por su tamaño.
+
+Para descargarlo automáticamente:
+```bash
+python download_model.py
+```
+*(Requiere la librería `huggingface_hub`)*
+
+---
+
+## Consejos
 - Si usas un gestor de entornos diferente (conda, pipx), puedes usarlo en lugar de los scripts.
 - Si tu sistema tiene varias versiones de Python, asegúrate que la que se usa sea 3.8 o superior.
 - Para problemas con PyAudio en Windows, instala las ruedas (wheels) específicas para tu versión de Python/arquitectura si pip falla.

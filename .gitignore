@@ -40,5 +40,8 @@ id_ed25519
 recordings/
 app/config/ui_settings.json
 
+# Models
+models/gemma-3-1b-it-Q4_K_M.gguf
+
 # Legacy local override
 @llm_client.py

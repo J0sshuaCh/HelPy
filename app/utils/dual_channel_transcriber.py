@@ -1,8 +1,11 @@
 import queue
 import threading
+import time
+import ctypes
 from typing import Callable, Optional
 
 import numpy as np
+import soundcard as sc
 import sounddevice as sd
 import speech_recognition as sr
 
@@ -43,6 +46,8 @@ class DualChannelTranscriber:
         self._sys_thread = None
         self._sys_queue = queue.Queue()
         self._sys_stop_event = threading.Event()
+        self._mic_stream = None
+        self._mic_thread = None
         self._running = False
 
     def _append_text(self, origin: str, text: str):
@@ -133,170 +138,235 @@ class DualChannelTranscriber:
         self.mic_adjust_duration = mic_adjust_duration
 
     def _start_mic(self):
-        recognizer = sr.Recognizer()
-        recognizer.dynamic_energy_threshold = self.mic_dynamic
-        recognizer.energy_threshold = self.mic_energy_threshold
-
-        mic = sr.Microphone(device_index=self.mic_device_index)
-
-        if self.mic_mode == "auto":
-            try:
-                with mic as source:
-                    recognizer.adjust_for_ambient_noise(source, duration=self.mic_adjust_duration)
-            except Exception:
-                pass
-
-        def _callback(rec, audio):
-            try:
-                texto = rec.recognize_google(audio, language=self.language)
-                if texto:
-                    self._append_text("YO", texto)
-            except sr.UnknownValueError:
-                pass
-            except sr.RequestError as e:
-                print(f"[YO] Error de red: {e}")
-
-        self._stop_mic = recognizer.listen_in_background(
-            mic, _callback, phrase_time_limit=self.phrase_time_limit
-        )
-
-    def _wasapi_settings_loopback(self):
-        try:
-            return sd.WasapiSettings(loopback=True), True
-        except TypeError:
-            return sd.WasapiSettings(), False
-
-    def supports_system_loopback(self) -> bool:
-        return self._wasapi_settings_loopback()[1]
-
-    def _find_wasapi_loopback(self):
-        hostapis = sd.query_hostapis()
-        candidates = []
-        fallback = None
-        for i, info in enumerate(sd.query_devices()):
-            api = hostapis[info.get("hostapi", 0)].get("name", "")
-            name = info.get("name", "")
-            if "WASAPI" not in api or info.get("max_input_channels", 0) <= 0:
-                continue
-            name_lower = name.lower()
-            if "loopback" in name_lower:
-                return i
-            if "mezcla" in name_lower or "stereo mix" in name_lower or "mix" in name_lower:
-                candidates.append(i)
-            if fallback is None:
-                fallback = i
-        if candidates:
-            return candidates[0]
-        return fallback
-
-    def _start_system(self):
-        wasapi, supports_loopback = self._wasapi_settings_loopback()
-
-        device_index = self.system_device_index
-        if supports_loopback:
-            if device_index is None:
-                device_index = sd.default.device[1]
-            if device_index is None:
-                for i, info in enumerate(sd.query_devices()):
-                    if info.get("max_output_channels", 0) > 0:
-                        device_index = i
-                        break
-            if device_index is None:
-                raise RuntimeError("No se encontro un dispositivo de salida para loopback")
-        else:
-            if device_index is None:
-                device_index = self._find_wasapi_loopback()
-            if device_index is None:
-                raise RuntimeError("No se encontro un dispositivo de captura WASAPI")
+        device_index = self.mic_device_index
+        if device_index is None:
+            device_index = sd.default.device[0]
 
         device_info = sd.query_devices(device_index)
         hostapis = sd.query_hostapis()
         api_name = hostapis[device_info.get("hostapi", 0)].get("name", "?")
 
-        if supports_loopback and "WASAPI" not in api_name:
-            if self.system_device_index is not None:
-                raise RuntimeError("El dispositivo del sistema debe ser WASAPI para loopback")
-            for i, info in enumerate(sd.query_devices()):
-                api = hostapis[info.get("hostapi", 0)].get("name", "")
-                if "WASAPI" in api and info.get("max_output_channels", 0) > 0:
-                    device_index = i
-                    device_info = info
-                    api_name = api
-                    break
-
-        print(f"[SISTEMA] Usando dispositivo {device_index} ({api_name}): {device_info.get('name')}")
-        if not supports_loopback and device_info.get("max_input_channels", 0) <= 0:
-            raise RuntimeError("El dispositivo del sistema debe ser de entrada (WASAPI) para loopback")
+        max_in = int(device_info.get("max_input_channels", 1))
+        channels = 1 if max_in >= 1 else 0
+        if channels == 0:
+            raise RuntimeError("El dispositivo de microfono no tiene canales de entrada")
 
         sample_rate = int(device_info.get("default_samplerate", 44100))
+        bytes_per_sample = 2
 
-        if supports_loopback:
-            max_out = int(device_info.get("max_output_channels", 2))
-            channels = 2 if max_out >= 2 else 1
-        else:
-            max_in = int(device_info.get("max_input_channels", 2))
-            channels = 2 if max_in >= 2 else 1
+        print(f"[YO] Usando dispositivo {device_index} ({api_name}): {device_info.get('name')}")
 
         recognizer = sr.Recognizer()
-        recognizer.energy_threshold = 300
-        recognizer.dynamic_energy_threshold = True
+        recognizer.dynamic_energy_threshold = self.mic_dynamic
+        recognizer.energy_threshold = self.mic_energy_threshold
 
-        bytes_per_sample = 2
-        target_bytes = int(sample_rate * self.system_chunk_seconds * bytes_per_sample)
-
-        self._sys_stop_event.clear()
+        self._mic_stop_event = threading.Event()
+        self._mic_queue = queue.Queue()
+        threshold = float(self.mic_energy_threshold)
 
         def _callback(indata, frames, time_info, status):
-            if status:
-                print(f"[SISTEMA] Loopback status: {status}")
-            if self._sys_stop_event.is_set():
+            if self._mic_stop_event.is_set():
                 return
             audio = indata
             if audio.ndim > 1:
                 audio = np.mean(audio, axis=1)
             audio = audio.astype(np.int16)
-            self._sys_queue.put(audio.tobytes())
+            rms = np.sqrt(np.mean(audio.astype(np.float64) ** 2))
+            self._mic_queue.put((audio.tobytes(), rms))
 
         def _worker():
-            buffer = bytearray()
-            while not self._sys_stop_event.is_set():
+            nonlocal threshold
+            speech_buffer = bytearray()
+            in_speech = False
+            silence_start = 0.0
+            phrase_start = 0.0
+            ambient_buf = bytearray()
+            ambient_ready = False
+            ambient_needed = int(sample_rate * self.mic_adjust_duration * bytes_per_sample)
+
+            while not self._mic_stop_event.is_set():
                 try:
-                    data = self._sys_queue.get(timeout=0.2)
+                    data, rms = self._mic_queue.get(timeout=0.2)
                 except queue.Empty:
                     continue
-                buffer.extend(data)
-                if len(buffer) >= target_bytes:
-                    audio_bytes = bytes(buffer[:target_bytes])
-                    buffer = buffer[target_bytes:]
-                    audio = sr.AudioData(audio_bytes, sample_rate, bytes_per_sample)
-                    try:
-                        texto = recognizer.recognize_google(audio, language=self.language)
-                        if texto:
-                            self._append_text("SISTEMA", texto)
-                    except sr.UnknownValueError:
-                        pass
-                    except sr.RequestError as e:
-                        print(f"[SISTEMA] Error de red: {e}")
 
-        self._sys_stream = sd.InputStream(
+                if self.mic_mode == "auto" and not ambient_ready:
+                    ambient_buf.extend(data)
+                    if len(ambient_buf) >= ambient_needed:
+                        arr = np.frombuffer(bytes(ambient_buf[:ambient_needed]), dtype=np.int16).astype(np.float64)
+                        ambient_rms = np.sqrt(np.mean(arr ** 2))
+                        threshold = max(ambient_rms * 2.0, 50.0)
+                        recognizer.energy_threshold = threshold
+                        print(f"[YO] Umbral de ruido ajustado: {threshold:.1f}")
+                        ambient_buf = bytearray()
+                        ambient_ready = True
+                    continue
+
+                is_speech = rms >= threshold
+
+                if is_speech:
+                    if not in_speech:
+                        in_speech = True
+                        phrase_start = time.time()
+                    speech_buffer.extend(data)
+                    silence_start = 0.0
+
+                    if self.phrase_time_limit > 0 and len(speech_buffer) > sample_rate * bytes_per_sample:
+                        if time.time() - phrase_start >= self.phrase_time_limit:
+                            audio = sr.AudioData(bytes(speech_buffer), sample_rate, bytes_per_sample)
+                            try:
+                                texto = recognizer.recognize_google(audio, language=self.language)
+                                if texto:
+                                    self._append_text("YO", texto)
+                            except sr.UnknownValueError:
+                                pass
+                            except sr.RequestError as e:
+                                print(f"[YO] Error de red: {e}")
+                            speech_buffer = bytearray()
+                            in_speech = False
+                            phrase_start = time.time()
+                else:
+                    if in_speech:
+                        if silence_start == 0.0:
+                            silence_start = time.time()
+                        elif time.time() - silence_start >= 0.5:
+                            if len(speech_buffer) >= sample_rate * bytes_per_sample:
+                                audio = sr.AudioData(bytes(speech_buffer), sample_rate, bytes_per_sample)
+                                try:
+                                    texto = recognizer.recognize_google(audio, language=self.language)
+                                    if texto:
+                                        self._append_text("YO", texto)
+                                except sr.UnknownValueError:
+                                    pass
+                                except sr.RequestError as e:
+                                    print(f"[YO] Error de red: {e}")
+                            speech_buffer = bytearray()
+                            in_speech = False
+                            silence_start = 0.0
+                    elif ambient_ready and self.mic_dynamic:
+                        threshold = threshold * 0.99 + rms * 0.01
+
+        self._mic_stream = sd.InputStream(
             samplerate=sample_rate,
             device=device_index,
             channels=channels,
             dtype="int16",
             callback=_callback,
-            extra_settings=wasapi,
         )
-        self._sys_stream.start()
+        self._mic_stream.start()
+
+        self._mic_thread = threading.Thread(target=_worker, daemon=True)
+        self._mic_thread.start()
+
+        def _stop_mic_fn(wait_for_stop=False):
+            self._mic_stop_event.set()
+            if self._mic_stream:
+                self._mic_stream.stop()
+                self._mic_stream.close()
+                self._mic_stream = None
+            if wait_for_stop and self._mic_thread:
+                self._mic_thread.join(timeout=2)
+
+        self._stop_mic = _stop_mic_fn
+
+    def _wasapi_settings_loopback(self):
+        for i, info in enumerate(sd.query_devices()):
+            api = sd.query_hostapis()[info["hostapi"]]["name"]
+            if "WASAPI" in api and "loopback" in info.get("name", "").lower():
+                return sd.WasapiSettings(), True
+        return sd.WasapiSettings(), False
+
+    def supports_system_loopback(self) -> bool:
+        return self._wasapi_settings_loopback()[1]
+
+    def _find_loopback_device(self):
+        for i, info in enumerate(sd.query_devices()):
+            if info.get("max_input_channels", 0) <= 0:
+                continue
+            if "loopback" in info.get("name", "").lower():
+                return i
+        for i, info in enumerate(sd.query_devices()):
+            if info.get("max_input_channels", 0) <= 0:
+                continue
+            name = info.get("name", "").lower()
+            if "mezcla" in name or "stereo mix" in name or "mix" in name:
+                return i
+        return None
+
+    def _start_system(self):
+        # Usamos soundcard para loopback real del sistema
+        device_id = self.system_device_index
+        
+        try:
+            if device_id is None:
+                speaker = sc.default_speaker()
+            else:
+                # Intentar encontrar por índice o nombre si es posible
+                speakers = sc.all_speakers()
+                if isinstance(device_id, int) and 0 <= device_id < len(speakers):
+                    speaker = speakers[device_id]
+                else:
+                    speaker = sc.default_speaker()
+            
+            # Obtener el micrófono de loopback para ese altavoz
+            mic = sc.get_microphone(speaker.name, include_loopback=True)
+            print(f"[SISTEMA] Capturando loopback de: {speaker.name}")
+        except Exception as e:
+            raise RuntimeError(f"No se pudo inicializar soundcard para loopback: {e}")
+
+        sample_rate = 16000 # Forzamos 16kHz para mejor compatibilidad con Google STT
+        
+        recognizer = sr.Recognizer()
+        recognizer.energy_threshold = 300
+        recognizer.dynamic_energy_threshold = True
+
+        bytes_per_sample = 2
+        # Chunk de aprox 6 segundos
+        chunk_frames = int(sample_rate * self.system_chunk_seconds)
+
+        self._sys_stop_event.clear()
+
+        def _worker():
+            # Solucion al error 0x800401f0 (CoInitialize no llamado)
+            ctypes.windll.ole32.CoInitialize(None)
+            try:
+                with mic.recorder(samplerate=sample_rate) as recorder:
+                    while not self._sys_stop_event.is_set():
+                        try:
+                            # soundcard devuelve float32 [-1.0, 1.0]
+                            data = recorder.record(numframes=chunk_frames)
+                            
+                            # Convertir a mono si es necesario
+                            if data.ndim > 1:
+                                data = np.mean(data, axis=1)
+                            
+                            # Convertir a int16 para SpeechRecognition
+                            audio_int16 = (data * 32767).astype(np.int16)
+                            audio_bytes = audio_int16.tobytes()
+                            
+                            audio_data = sr.AudioData(audio_bytes, sample_rate, bytes_per_sample)
+                            
+                            try:
+                                texto = recognizer.recognize_google(audio_data, language=self.language)
+                                if texto:
+                                    self._append_text("SISTEMA", texto)
+                            except sr.UnknownValueError:
+                                pass
+                            except sr.RequestError as e:
+                                print(f"[SISTEMA] Error de red: {e}")
+                                
+                        except Exception as e:
+                            if not self._sys_stop_event.is_set():
+                                print(f"[SISTEMA] Error en captura: {e}")
+                            break
+            finally:
+                ctypes.windll.ole32.CoUninitialize()
 
         self._sys_thread = threading.Thread(target=_worker, daemon=True)
         self._sys_thread.start()
 
         def _stop_sys(wait_for_stop: bool = False):
             self._sys_stop_event.set()
-            if self._sys_stream:
-                self._sys_stream.stop()
-                self._sys_stream.close()
-                self._sys_stream = None
             if wait_for_stop and self._sys_thread:
                 self._sys_thread.join(timeout=2)
 

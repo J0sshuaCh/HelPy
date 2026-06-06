@@ -91,7 +91,6 @@ class ScriptWindow(QWidget):
         self.md_view.setReadOnly(True)
         self.md_view.setObjectName("textArea")
         self.md_view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.md_view.setAcceptRichText(True)
         container_layout.addWidget(self.md_view)
 
         outer.addWidget(self.container)
@@ -123,7 +122,7 @@ class ScriptWindow(QWidget):
         w = self.width()
         margin = 20
         x = int((screen.width() - w) / 2)
-        self.move(x, margin)
+        self.move(x, margin + 100)
 
     def toggle_collapsed(self):
         self.is_collapsed = not self.is_collapsed

@@ -1,7 +1,7 @@
 from typing import Optional, Callable
 
 from app.utils.dual_channel_transcriber import DualChannelTranscriber
-from app.core.llm_client import LlmClient
+from app.core.llm_client import get_llm_client
 
 
 class AssistantController:
@@ -30,7 +30,11 @@ class AssistantController:
         self._on_result_callback: Optional[Callable[[str], None]] = None
         self._on_status_callback: Optional[Callable[[str], None]] = None
         self._on_llm_callback: Optional[Callable[[str], None]] = None
-        self.llm = LlmClient()
+        try:
+            self.llm = get_llm_client()
+        except Exception as exc:
+            self.llm = None
+            self._emit_status(f"LLM desactivado: {exc}")
 
     def on_result(self, callback: Callable[[str], None]):
         self._on_result_callback = callback
@@ -68,6 +72,10 @@ class AssistantController:
             self._emit_status("No se pudo transcribir el audio")
 
     def send_buffer_to_llm(self):
+        if not self.llm:
+            self._emit_status("LLM no disponible")
+            return
+
         self._emit_status("Enviando a IA... Procesando")
         text = self.transcriber.get_buffer_text(clear=False)
         if not text:
