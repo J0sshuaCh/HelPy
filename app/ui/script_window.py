@@ -2,6 +2,7 @@ import sys
 import ctypes
 import json
 import os
+import fitz  # PyMuPDF
 
 from PyQt5.QtWidgets import (
     QWidget,
@@ -25,7 +26,7 @@ class ScriptWindow(QWidget):
         self.settings = self._load_settings()
         self.is_collapsed = bool(self.settings.get("script_collapsed", False))
         self.capture_visible = bool(self.settings.get("script_capture_visible", False))
-        self._last_markdown_path = self.settings.get("script_markdown_path")
+        self._last_script_path = self.settings.get("script_path")
 
         self._init_ui()
         self._apply_settings()
@@ -69,22 +70,22 @@ class ScriptWindow(QWidget):
         container_layout.setSpacing(10)
         self.container.setLayout(container_layout)
 
-        title = QLabel("Guion (Markdown)", self)
+        title = QLabel("Guion (MD/PDF/TXT)", self)
         title.setObjectName("sectionLabel")
         container_layout.addWidget(title)
 
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
 
-        self.open_button = QPushButton("Abrir .md", self)
-        self.open_button.clicked.connect(self.open_markdown_file)
+        self.open_button = QPushButton("Abrir Archivo", self)
+        self.open_button.clicked.connect(self.open_script_file)
         button_row.addWidget(self.open_button)
         button_row.addStretch(1)
         container_layout.addLayout(button_row)
 
         self.path_label = QLabel("", self)
         self.path_label.setObjectName("statusLabel")
-        self.path_label.setText("Arrastra un .md aqui o usa Abrir .md")
+        self.path_label.setText("Arrastra un archivo aqui o usa Abrir")
         container_layout.addWidget(self.path_label)
 
         self.md_view = QTextEdit(self)
@@ -163,44 +164,85 @@ class ScriptWindow(QWidget):
             self.capture_button.setIcon(self._icon("eye_off"))
             self.capture_button.setToolTip("Oculto en captura")
 
-    def open_markdown_file(self):
+    def open_script_file(self):
         start_dir = ""
-        if self._last_markdown_path and os.path.exists(self._last_markdown_path):
-            start_dir = os.path.dirname(self._last_markdown_path)
+        if self._last_script_path and os.path.exists(self._last_script_path):
+            start_dir = os.path.dirname(self._last_script_path)
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Abrir Markdown",
+            "Abrir Guion",
             start_dir,
-            "Markdown (*.md *.markdown);;Todos (*.*)",
+            "Documentos (*.md *.markdown *.pdf *.txt);;Todos (*.*)",
         )
         if not path:
             return
-        self.load_markdown(path)
+        self.load_script(path)
 
-    def load_markdown(self, path: str):
+    def load_script(self, path: str):
         if not path:
             return
         if not os.path.exists(path):
             self.path_label.setText(f"No existe: {path}")
             return
+
+        ext = path.lower()
+        if ext.endswith((".md", ".markdown")):
+            self.load_markdown(path)
+        elif ext.endswith(".pdf"):
+            self.load_pdf(path)
+        elif ext.endswith(".txt"):
+            self.load_txt(path)
+        else:
+            self.path_label.setText(f"Formato no soportado: {path}")
+
+    def load_pdf(self, path: str):
+        try:
+            doc = fitz.open(path)
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            doc.close()
+            
+            if not text.strip():
+                text = "*El PDF no contiene texto extraíble.*"
+                
+            self.md_view.setPlainText(text)
+            self._update_after_load(path)
+        except Exception as exc:
+            self.path_label.setText(f"Error PDF: {exc}")
+
+    def load_txt(self, path: str):
+        text = self._read_text_file(path)
+        if text is not None:
+            self.md_view.setPlainText(text)
+            self._update_after_load(path)
+
+    def load_markdown(self, path: str):
+        text = self._read_text_file(path)
+        if text is not None:
+            self.md_view.setMarkdown(text)
+            self._update_after_load(path)
+
+    def _read_text_file(self, path: str):
         try:
             with open(path, "r", encoding="utf-8") as handle:
-                text = handle.read()
+                return handle.read()
         except UnicodeDecodeError:
-            with open(path, "r", encoding="latin-1", errors="replace") as handle:
-                text = handle.read()
+            try:
+                with open(path, "r", encoding="latin-1", errors="replace") as handle:
+                    return handle.read()
+            except Exception as exc:
+                self.path_label.setText(f"Error leyendo: {exc}")
+                return None
         except OSError as exc:
-            self.path_label.setText(f"Error leyendo: {exc}")
-            return
+            self.path_label.setText(f"Error OSError: {exc}")
+            return None
 
-        # Render markdown (PyQt5 provides QTextEdit.setMarkdown).
-        self.md_view.setMarkdown(text)
-        self._last_markdown_path = path
-        self.settings["script_markdown_path"] = path
+    def _update_after_load(self, path: str):
+        self._last_script_path = path
+        self.settings["script_path"] = path
         self._save_settings()
         self.path_label.setText(path)
-
-        # Scroll to top by default for a script.
         self.md_view.verticalScrollBar().setValue(0)
 
     def dragEnterEvent(self, event):
@@ -208,7 +250,7 @@ class ScriptWindow(QWidget):
             urls = event.mimeData().urls()
             if urls:
                 p = urls[0].toLocalFile()
-                if p.lower().endswith((".md", ".markdown")):
+                if p.lower().endswith((".md", ".markdown", ".pdf", ".txt")):
                     event.acceptProposedAction()
                     return
         event.ignore()
@@ -218,8 +260,7 @@ class ScriptWindow(QWidget):
         if not urls:
             return
         path = urls[0].toLocalFile()
-        if path.lower().endswith((".md", ".markdown")):
-            self.load_markdown(path)
+        self.load_script(path)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -235,7 +276,7 @@ class ScriptWindow(QWidget):
             self.close()
             return
         if event.key() == Qt.Key_O and event.modifiers() & Qt.ControlModifier:
-            self.open_markdown_file()
+            self.open_script_file()
             return
         super().keyPressEvent(event)
 
@@ -252,8 +293,8 @@ class ScriptWindow(QWidget):
             self.edge_button.setIcon(self._icon("collapse"))
             self.edge_button.setToolTip("Retractar")
 
-        if self._last_markdown_path and os.path.exists(self._last_markdown_path):
-            self.load_markdown(self._last_markdown_path)
+        if self._last_script_path and os.path.exists(self._last_script_path):
+            self.load_script(self._last_script_path)
 
         self.adjustSize()
         self.update_position()
