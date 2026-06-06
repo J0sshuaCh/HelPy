@@ -44,7 +44,7 @@ class OverlayWindow(QWidget):
         self.tray_icon = None
         self.recording = False
         self.is_collapsed = False
-        self.position_mode = "center"  # "left", "center", "right"
+        self.position_mode = "right"  # "left", "center", "right"
         self.capture_visible = False
         # Drag handle logic: move entire window if clicking the header area
         self._drag_pos = QPoint()
@@ -100,9 +100,9 @@ class OverlayWindow(QWidget):
         """)
         
         self.opacity_slider = QSlider(Qt.Horizontal)
-        self.opacity_slider.setRange(20, 85)
+        self.opacity_slider.setRange(20, 100)
         self.opacity_slider.setValue(self.opacity)
-        self.opacity_slider.setFixedWidth(60)
+        self.opacity_slider.setFixedWidth(100)
         self.opacity_slider.valueChanged.connect(self._apply_global_opacity)
         self.opacity_slider.setObjectName("opacitySlider")
         
@@ -135,19 +135,19 @@ class OverlayWindow(QWidget):
         pos_row = QHBoxLayout()
         pos_row.setContentsMargins(0, 0, 0, 0)
         
-        self.pos_left_btn = QPushButton("L", self)
+        self.pos_left_btn = QPushButton("", self)
         self.pos_left_btn.setObjectName("edgeButton")
         self.pos_left_btn.setIcon(self._icon("arrow_left"))
         self.pos_left_btn.setIconSize(QSize(14, 14))
         self.pos_left_btn.clicked.connect(lambda: self.set_position_mode("left"))
         
-        self.pos_center_btn = QPushButton("C", self)
+        self.pos_center_btn = QPushButton("", self)
         self.pos_center_btn.setObjectName("edgeButton")
         self.pos_center_btn.setIcon(self._icon("arrow_up"))
         self.pos_center_btn.setIconSize(QSize(14, 14))
         self.pos_center_btn.clicked.connect(lambda: self.set_position_mode("center"))
         
-        self.pos_right_btn = QPushButton("R", self)
+        self.pos_right_btn = QPushButton("", self)
         self.pos_right_btn.setObjectName("edgeButton")
         self.pos_right_btn.setIcon(self._icon("arrow_right"))
         self.pos_right_btn.setIconSize(QSize(14, 14))
@@ -156,9 +156,9 @@ class OverlayWindow(QWidget):
         pos_row.addWidget(self.pos_left_btn)
         pos_row.addWidget(self.pos_center_btn)
         pos_row.addWidget(self.pos_right_btn)
+        pos_row.addStretch(1)
         pos_row.addWidget(QLabel("Opacidad:"))
         pos_row.addWidget(self.opacity_slider)
-        pos_row.addStretch(1)
         container_layout.addLayout(pos_row)
 
         # 3. Rest of the UI
@@ -216,6 +216,7 @@ class OverlayWindow(QWidget):
         self.record_button = QPushButton("Grabar", self)
         self.record_button.clicked.connect(self.toggle_recording)
         self.send_button = QPushButton("Enviar a LLM", self)
+        self.send_button.setObjectName("sendButton")
         self.send_button.clicked.connect(self.assistant.send_buffer_to_llm)
         self.refresh_button = QPushButton("Actualizar dispositivos", self)
         self.refresh_button.clicked.connect(self._build_device_menus)
@@ -253,7 +254,7 @@ class OverlayWindow(QWidget):
         self.ai_config_body.setObjectName("aiConfigBody")
         ai_form_layout = QFormLayout()
         ai_form_layout.setSpacing(10)
-        ai_form_layout.setContentsMargins(10, 5, 10, 10)
+        ai_form_layout.setContentsMargins(12, 8, 12, 12)
 
         self.ai_provider_combo = QComboBox(self)
         self.ai_provider_combo.addItems(["LM Studio", "Google", "Groq", "Local (llama.cpp)"])
@@ -276,6 +277,7 @@ class OverlayWindow(QWidget):
 
         ai_button_row = QHBoxLayout()
         self.save_ai_button = QPushButton("Guardar", self)
+        self.save_ai_button.setObjectName("saveAIButton")
         self.save_ai_button.clicked.connect(self._save_ai_settings)
         self.ai_status_label = QLabel("", self)
         self.ai_status_label.setObjectName("statusLabel")
@@ -299,7 +301,6 @@ class OverlayWindow(QWidget):
         self.text_container.setLayout(text_layout)
 
         self.transcription_label = QLabel("Transcripcion", self)
-        self.transcription_label.setStyleSheet("font-weight: bold; color: #60a5fa; font-size: 14px;")
         self.transcription_label.setObjectName("sectionLabel")
         self.transcription_text = QTextEdit(self)
         self.transcription_text.setReadOnly(True)
@@ -307,7 +308,6 @@ class OverlayWindow(QWidget):
         self.transcription_text.setMaximumHeight(85)  # Aprox 4 lineas
 
         self.llm_label = QLabel("Respuesta LLM", self)
-        self.llm_label.setStyleSheet("font-weight: bold; color: #60a5fa; font-size: 14px;")
         self.llm_label.setObjectName("sectionLabel")
         self.llm_text = QTextEdit(self)
         self.llm_text.setReadOnly(True)
@@ -521,6 +521,7 @@ class OverlayWindow(QWidget):
         self.sys_combo.currentIndexChanged.connect(self._on_sys_combo_changed)
         self.mic_combo.blockSignals(False)
         self.sys_combo.blockSignals(False)
+        self._update_device_tooltips()
         self._sync_device_selection()
         self._update_capture_mode_warning()
 
@@ -697,25 +698,26 @@ class OverlayWindow(QWidget):
     def _apply_styles(self):
         self.setStyleSheet("""
             QWidget {
-                font-family: "Cascadia Mono", "Consolas", "Lucida Console", "Courier New", monospace;
+                font-family: "Inter", "Roboto", "Segoe UI", "Arial", sans-serif;
             }
             #overlayContainer {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 rgba(26, 40, 62, 210), stop:1 rgba(16, 24, 38, 210));
-                border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 20);
+                border-radius: 8px;
             }
             QLabel {
                 color: #e5e7eb;
                 font-size: 12px;
             }
             #statusLabel {
-                color: #b8c0cc;
+                color: #94a3b8;
                 font-size: 11px;
             }
             #sectionLabel {
-                font-size: 11px;
-                color: #cbd5e1;
+                font-size: 13px;
+                font-weight: bold;
+                color: #F3F4F6;
                 padding-left: 4px;
             }
             #deviceCombo {
@@ -730,35 +732,44 @@ class OverlayWindow(QWidget):
                 background-color: rgba(26, 36, 54, 200);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 10px;
+                border-radius: 8px;
                 padding: 6px 10px;
                 font-size: 11px;
                 min-height: 24px;
                 text-align: left;
             }
             #sectionToggle:hover {
-                background-color: rgba(38, 54, 82, 220);
+                background-color: rgba(96, 165, 250, 220);
+                border-color: rgba(255, 255, 255, 80);
             }
             #edgeButton {
                 background-color: rgba(26, 36, 54, 200);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 10px;
-                padding: 4px 10px;
+                border-radius: 8px;
+                padding: 6px 10px;
                 font-size: 11px;
                 min-height: 22px;
+            }
+            #edgeButton:hover {
+                background-color: rgba(96, 165, 250, 220);
+                border-color: rgba(255, 255, 255, 80);
             }
             #modeButton {
                 background-color: rgba(20, 30, 46, 200);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 10px;
+                border-radius: 8px;
                 padding: 6px 10px;
                 font-size: 11px;
                 min-height: 24px;
             }
+            #modeButton:hover {
+                background-color: rgba(96, 165, 250, 220);
+                border-color: rgba(255, 255, 255, 80);
+            }
             #modeButton:checked {
-                background-color: rgba(40, 58, 88, 230);
+                background-color: rgba(96, 165, 250, 220);
                 border-color: rgba(255, 255, 255, 80);
             }
             QPushButton {
@@ -770,29 +781,47 @@ class OverlayWindow(QWidget):
                 font-size: 12px;
             }
             QPushButton:hover {
-                background-color: rgba(38, 54, 82, 220);
+                background-color: rgba(96, 165, 250, 220);
+                border-color: rgba(255, 255, 255, 80);
             }
             QTextEdit#textArea {
-                background-color: rgba(14, 20, 34, 200);
+                background-color: rgba(20, 32, 52, 220);
                 color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 35);
+                border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 8px;
                 padding: 8px;
-                font-size: 12px;
+                font-size: 13px;
             }
             QLineEdit {
-                background-color: rgba(14, 20, 34, 200);
+                background-color: rgba(20, 32, 52, 220);
                 color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 35);
+                border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 8px;
-                padding: 4px;
+                padding: 6px;
             }
             QComboBox {
-                background-color: rgba(18, 28, 44, 200);
+                background-color: rgba(20, 32, 52, 220);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 8px;
                 padding: 4px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: rgba(20, 32, 52, 240);
+                color: #e5e7eb;
+                border: 1px solid rgba(255, 255, 255, 60);
+                border-radius: 4px;
+                selection-background-color: rgba(96, 165, 250, 220);
+                selection-color: #ffffff;
+                padding: 2px;
+                outline: none;
+            }
+            QComboBox QAbstractItemView::item {
+                padding: 6px 10px;
+                min-height: 24px;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: rgba(96, 165, 250, 120);
             }
             #warningLabel {
                 color: #fbbf24;
@@ -812,10 +841,6 @@ class OverlayWindow(QWidget):
             QScrollBar::handle:vertical:hover {
                 background: rgba(255, 255, 255, 80);
             }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                border: none;
-                background: none;
-            }
             QSlider::groove:horizontal {
                 border: 1px solid rgba(255, 255, 255, 30);
                 height: 4px;
@@ -834,21 +859,22 @@ class OverlayWindow(QWidget):
             QSlider::handle:horizontal:hover {
                 background: #93c5fd;
             }
-            #dragHandle {
-                color: #94a3b8;
-                font-weight: bold;
-                font-size: 14px;
-            }
         """)
+
+    def _update_device_tooltips(self):
+        self.mic_combo.setToolTip(self.mic_combo.currentText())
+        self.sys_combo.setToolTip(self.sys_combo.currentText())
 
     def _on_mic_combo_changed(self, index):
         if index < 0 or index >= len(self.mic_devices):
             return
+        self.mic_combo.setToolTip(self.mic_combo.currentText())
         self.set_mic_device(self.mic_devices[index])
 
     def _on_sys_combo_changed(self, index):
         if index < 0 or index >= len(self.sys_devices):
             return
+        self.sys_combo.setToolTip(self.sys_combo.currentText())
         self.set_sys_device(self.sys_devices[index])
 
     def _sync_device_selection(self):
@@ -986,7 +1012,6 @@ class OverlayWindow(QWidget):
         if hasattr(self, "llm_toggle_button"):
             self.llm_toggle_button.setIcon(self._icon("expand") if self.llm_config_collapsed else self._icon("collapse"))
         self.adjustSize()
-        self.update_position()
 
 
     def _apply_settings(self):

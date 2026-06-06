@@ -52,23 +52,9 @@ class ScriptWindow(QWidget):
         outer.setContentsMargins(10, 10, 10, 10)
         outer.setSpacing(6)
 
-        # Header Area - outside container (same style as overlay_window)
-        self.header_area = QFrame(self)
-        self.header_area.setObjectName("headerArea")
-        header_layout = QHBoxLayout(self.header_area)
-        header_layout.setContentsMargins(10, 10, 10, 2)
-        header_layout.setSpacing(5)
-
-        title_label = QLabel("Guion")
-        title_label.setStyleSheet("""
-            font-weight: bold;
-            color: #60a5fa;
-            font-size: 14px;
-            background-color: rgba(26, 36, 54, 200);
-            border: 1px solid rgba(255, 255, 255, 40);
-            border-radius: 8px;
-            padding: 2px 10px;
-        """)
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.addStretch(1)
 
         self.capture_button = QPushButton(self)
         self.capture_button.setObjectName("edgeButton")
@@ -82,12 +68,9 @@ class ScriptWindow(QWidget):
         self.edge_button.setText("")
         self.edge_button.clicked.connect(self.toggle_collapsed)
 
-        header_layout.addWidget(title_label)
-        header_layout.addStretch(1)
-        header_layout.addWidget(self.capture_button)
-        header_layout.addWidget(self.edge_button)
-
-        outer.addWidget(self.header_area)
+        header_row.addWidget(self.capture_button, 0)
+        header_row.addWidget(self.edge_button, 0)
+        outer.addLayout(header_row)
 
         self.container = QFrame(self)
         self.container.setObjectName("overlayContainer")
@@ -96,17 +79,20 @@ class ScriptWindow(QWidget):
         container_layout.setSpacing(10)
         self.container.setLayout(container_layout)
 
+        title_row = QHBoxLayout()
+        self.title_label = QLabel("Guion (MD/PDF/TXT)", self)
+        self.title_label.setObjectName("sectionLabel")
+        title_row.addWidget(self.title_label)
+        title_row.addStretch(1)
+        container_layout.addLayout(title_row)
+
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
 
         self.open_button = QPushButton("Abrir Archivo", self)
         self.open_button.clicked.connect(self.open_script_file)
         button_row.addWidget(self.open_button)
-
-        supported_label = QLabel("Archivos soportados (MD/PDF/TXT)")
-        supported_label.setObjectName("statusLabel")
-        button_row.addWidget(supported_label)
-
+        
         button_row.addStretch(1)
 
         opacity_label = QLabel("Opacidad:", self)
@@ -189,7 +175,7 @@ class ScriptWindow(QWidget):
         w = self.width()
         margin = 20
         x = int((screen.width() - w) / 2)
-        self.move(x, margin + 100)
+        self.move(x, margin)
 
     def toggle_collapsed(self):
         self.is_collapsed = not self.is_collapsed
@@ -418,6 +404,7 @@ class ScriptWindow(QWidget):
             if event.pos().y() < 80:
                 self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
                 event.accept()
+                return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -488,39 +475,43 @@ class ScriptWindow(QWidget):
         # Removed update_position() here to preserve user-set position
 
     def _apply_styles(self):
-        # Same visual language as overlay_window.py, slightly transparent.
         self.setStyleSheet(
             """
             QWidget {
-                font-family: "Cascadia Mono", "Consolas", "Lucida Console", "Courier New", monospace;
+                font-family: "Inter", "Roboto", "Segoe UI", "Arial", sans-serif;
             }
             #overlayContainer {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 rgba(26, 40, 62, 190), stop:1 rgba(16, 24, 38, 190));
-                border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 20);
+                border-radius: 8px;
             }
             QLabel {
                 color: #e5e7eb;
                 font-size: 12px;
             }
             #statusLabel {
-                color: #b8c0cc;
+                color: #94a3b8;
                 font-size: 11px;
             }
             #sectionLabel {
-                font-size: 11px;
-                color: #cbd5e1;
+                font-size: 13px;
+                font-weight: bold;
+                color: #F3F4F6;
                 padding-left: 4px;
             }
             #edgeButton {
                 background-color: rgba(26, 36, 54, 190);
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 10px;
-                padding: 4px 10px;
+                border-radius: 8px;
+                padding: 6px 10px;
                 font-size: 11px;
                 min-height: 22px;
+            }
+            #edgeButton:hover {
+                background-color: rgba(96, 165, 250, 220);
+                border-color: rgba(255, 255, 255, 80);
             }
             QPushButton {
                 background-color: rgba(28, 40, 62, 190);
@@ -531,20 +522,21 @@ class ScriptWindow(QWidget):
                 font-size: 12px;
             }
             QPushButton:hover {
-                background-color: rgba(38, 54, 82, 210);
+                background-color: rgba(96, 165, 250, 220);
+                border-color: rgba(255, 255, 255, 80);
             }
             QTextEdit#textArea {
-                background-color: rgba(14, 20, 34, 190);
+                background-color: rgba(20, 32, 52, 220);
                 color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 35);
+                border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 8px;
                 padding: 15px;
                 font-size: 13px;
                 line-height: 150%;
             }
             #pdfScroll {
-                background-color: rgba(14, 20, 34, 150);
-                border: 1px solid rgba(255, 255, 255, 35);
+                background-color: rgba(20, 32, 52, 220);
+                border: 1px solid rgba(255, 255, 255, 50);
                 border-radius: 8px;
             }
             QScrollBar:vertical, QScrollBar:horizontal {
@@ -582,17 +574,17 @@ class ScriptWindow(QWidget):
                 background: none;
             }
             QSlider::handle:horizontal {
-                background: #e5e7eb;
-                border: 1px solid #555;
+                background: #60a5fa;
+                border: 1px solid rgba(255, 255, 255, 50);
                 width: 14px;
                 height: 14px;
                 margin: -5px 0;
                 border-radius: 7px;
             }
             QSlider::groove:horizontal {
-                border: 1px solid #333;
+                border: 1px solid rgba(255, 255, 255, 30);
                 height: 4px;
-                background: rgba(255, 255, 255, 30);
+                background: rgba(0, 0, 0, 100);
                 margin: 2px 0;
                 border-radius: 2px;
             }
