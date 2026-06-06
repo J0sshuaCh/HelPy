@@ -25,8 +25,9 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QFormLayout,
     QFileDialog,
+    QSlider,
 )
-from PyQt5.QtCore import Qt, QRect, pyqtSignal, QSize
+from PyQt5.QtCore import Qt, QRect, pyqtSignal, QSize, QPoint
 from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor, QPainter, QFont
 
 from app.core.assistant_controller import AssistantController
@@ -45,8 +46,12 @@ class OverlayWindow(QWidget):
         self.is_collapsed = False
         self.position_mode = "center"  # "left", "center", "right"
         self.capture_visible = False
+        # Drag handle logic: move entire window if clicking the header area
+        self._drag_pos = QPoint()
         self.settings = self._load_settings()
+        self.opacity = self.settings.get("overlay_opacity", 100)
         self.llm_config_collapsed = bool(self.settings.get("llm_config_collapsed", True))
+
         self.mic_devices = []
         self.sys_devices = []
         self.mic_menu = QMenu("Microfono")
@@ -65,80 +70,98 @@ class OverlayWindow(QWidget):
         self.status_changed.connect(self._set_status_safe)
         self.llm_received.connect(self._set_llm_safe)
 
-        self.initUI()
-        self.init_tray_icon()
-        self._apply_settings()
-        self.init_hotkeys()
-
-    def initUI(self):
+        # Create UI
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
 
-        outer = QVBoxLayout()
-        outer.setContentsMargins(10, 10, 10, 10)
-        outer.setSpacing(6)
+        # Main Layout
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
 
-        header_row = QHBoxLayout()
-        header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.addStretch(1)
+        # 1. Header Area (New Title + Opacity + Buttons + Drag) - OUTSIDE container
+        self.header_area = QFrame(self)
+        self.header_area.setObjectName("headerArea")
+        header_layout = QHBoxLayout(self.header_area)
+        header_layout.setContentsMargins(10, 10, 10, 2)
+        header_layout.setSpacing(5)
+        
+        title_label = QLabel("HelPy")
+        title_label.setStyleSheet("""
+            font-weight: bold;
+            color: #60a5fa;
+            font-size: 14px;
+            background-color: rgba(26, 36, 54, 200);
+            border: 1px solid rgba(255, 255, 255, 40);
+            border-radius: 8px;
+            padding: 2px 10px;
+        """)
+        
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(20, 85)
+        self.opacity_slider.setValue(self.opacity)
+        self.opacity_slider.setFixedWidth(60)
+        self.opacity_slider.valueChanged.connect(self._apply_global_opacity)
+        self.opacity_slider.setObjectName("opacitySlider")
+        
+        self.capture_button = QPushButton("", self)
+        self.capture_button.setObjectName("edgeButton")
+        self.capture_button.setIcon(self._icon("eye_off"))
+        self.capture_button.setIconSize(QSize(14, 14))
+        self.capture_button.clicked.connect(self.toggle_capture_visibility)
+
+        self.edge_button = QPushButton("", self)
+        self.edge_button.setObjectName("edgeButton")
+        self.edge_button.setIcon(self._icon("collapse"))
+        self.edge_button.setIconSize(QSize(14, 14))
+        self.edge_button.clicked.connect(self.toggle_collapsed)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch(1)
+        header_layout.addWidget(self.capture_button)
+        header_layout.addWidget(self.edge_button)
+        
+        self.main_layout.addWidget(self.header_area)
+
+        # Container for the rest of UI
+        self.container = QFrame(self)
+        self.container.setObjectName("overlayContainer")
+        container_layout = QVBoxLayout(self.container)
+        container_layout.setContentsMargins(16, 5, 16, 16)
+        container_layout.setSpacing(10)
+        
+        # 2. Position Buttons Row (Inside container to be collapsed)
+        pos_row = QHBoxLayout()
+        pos_row.setContentsMargins(0, 0, 0, 0)
         
         self.pos_left_btn = QPushButton("L", self)
         self.pos_left_btn.setObjectName("edgeButton")
         self.pos_left_btn.setIcon(self._icon("arrow_left"))
         self.pos_left_btn.setIconSize(QSize(14, 14))
-        self.pos_left_btn.setText("")
-        self.pos_left_btn.setToolTip("Izquierda")
         self.pos_left_btn.clicked.connect(lambda: self.set_position_mode("left"))
         
         self.pos_center_btn = QPushButton("C", self)
         self.pos_center_btn.setObjectName("edgeButton")
         self.pos_center_btn.setIcon(self._icon("arrow_up"))
         self.pos_center_btn.setIconSize(QSize(14, 14))
-        self.pos_center_btn.setText("")
-        self.pos_center_btn.setToolTip("Centro")
         self.pos_center_btn.clicked.connect(lambda: self.set_position_mode("center"))
         
         self.pos_right_btn = QPushButton("R", self)
         self.pos_right_btn.setObjectName("edgeButton")
         self.pos_right_btn.setIcon(self._icon("arrow_right"))
         self.pos_right_btn.setIconSize(QSize(14, 14))
-        self.pos_right_btn.setText("")
-        self.pos_right_btn.setToolTip("Derecha")
         self.pos_right_btn.clicked.connect(lambda: self.set_position_mode("right"))
 
-        self.capture_button = QPushButton("Oculto", self)
-        self.capture_button.setObjectName("edgeButton")
-        self.capture_button.setIcon(self._icon("eye_off"))
-        self.capture_button.setIconSize(QSize(14, 14))
-        self.capture_button.setText("")
-        self.capture_button.setToolTip("Oculto en captura")
-        self.capture_button.clicked.connect(self.toggle_capture_visibility)
+        pos_row.addWidget(self.pos_left_btn)
+        pos_row.addWidget(self.pos_center_btn)
+        pos_row.addWidget(self.pos_right_btn)
+        pos_row.addWidget(QLabel("Opacidad:"))
+        pos_row.addWidget(self.opacity_slider)
+        pos_row.addStretch(1)
+        container_layout.addLayout(pos_row)
 
-        self.edge_button = QPushButton("Retractar", self)
-        self.edge_button.setObjectName("edgeButton")
-        self.edge_button.setIcon(self._icon("collapse"))
-        self.edge_button.setIconSize(QSize(14, 14))
-        self.edge_button.setText("")
-        self.edge_button.setToolTip("Retractar")
-        self.edge_button.clicked.connect(self.toggle_collapsed)
-
-        header_row.addWidget(self.pos_left_btn, 0)
-        header_row.addWidget(self.pos_center_btn, 0)
-        header_row.addWidget(self.pos_right_btn, 0)
-        header_row.addWidget(self.capture_button, 0)
-        header_row.addWidget(self.edge_button, 0)
-        outer.addLayout(header_row)
-
-        self.container = QFrame(self)
-        self.container.setObjectName("overlayContainer")
-        container_layout = QVBoxLayout()
-        container_layout.setContentsMargins(16, 16, 16, 16)
-        container_layout.setSpacing(10)
-        self.container.setLayout(container_layout)
-
+        # 3. Rest of the UI
         device_row = QHBoxLayout()
         device_row.setSpacing(10)
         self.mic_combo = QComboBox(self)
@@ -276,6 +299,7 @@ class OverlayWindow(QWidget):
         self.text_container.setLayout(text_layout)
 
         self.transcription_label = QLabel("Transcripcion", self)
+        self.transcription_label.setStyleSheet("font-weight: bold; color: #60a5fa; font-size: 14px;")
         self.transcription_label.setObjectName("sectionLabel")
         self.transcription_text = QTextEdit(self)
         self.transcription_text.setReadOnly(True)
@@ -283,6 +307,7 @@ class OverlayWindow(QWidget):
         self.transcription_text.setMaximumHeight(85)  # Aprox 4 lineas
 
         self.llm_label = QLabel("Respuesta LLM", self)
+        self.llm_label.setStyleSheet("font-weight: bold; color: #60a5fa; font-size: 14px;")
         self.llm_label.setObjectName("sectionLabel")
         self.llm_text = QTextEdit(self)
         self.llm_text.setReadOnly(True)
@@ -301,8 +326,9 @@ class OverlayWindow(QWidget):
         text_layout.addWidget(self.llm_text)
         container_layout.addWidget(self.text_container)
 
-        outer.addWidget(self.container)
-        self.setLayout(outer)
+        self.setLayout(QVBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self.container)
 
         self._load_ai_settings()
         self.ai_provider_combo.currentIndexChanged.connect(self._on_ai_provider_changed)
@@ -388,16 +414,19 @@ class OverlayWindow(QWidget):
         else:
             self.start_recording()
 
+
     def start_recording(self):
         self.recording = True
-        self.record_action.setText("Detener grabacion")
-        self.record_action.setIcon(QIcon())
+        if hasattr(self, "record_action"):
+            self.record_action.setText("Detener grabacion")
+            self.record_action.setIcon(QIcon())
         self.record_button.setText("Parar")
         self.assistant.start_recording()
 
     def stop_recording(self):
         self.recording = False
-        self.record_action.setText("Iniciar grabacion")
+        if hasattr(self, "record_action"):
+            self.record_action.setText("Iniciar grabacion")
         self.record_button.setText("Grabar")
         self.assistant.stop_recording_and_transcribe()
 
@@ -560,61 +589,6 @@ class OverlayWindow(QWidget):
         })
         self.hotkeys.start()
 
-
-    def start_recording(self):
-        self.recording = True
-        self.record_action.setText("Detener grabacion")
-        self.record_action.setIcon(QIcon())
-        self.record_button.setText("Parar")
-        self.assistant.start_recording()
-
-    def stop_recording(self):
-        self.recording = False
-        self.record_action.setText("Iniciar grabacion")
-        self.record_button.setText("Grabar")
-        self.assistant.stop_recording_and_transcribe()
-
-    def _on_transcription_result(self, text: str):
-        self.text_received.emit(text)
-
-    def _on_llm_result(self, text: str):
-        self.llm_received.emit(text)
-
-    def _on_status_change(self, msg: str):
-        self.status_changed.emit(msg)
-
-    def _set_transcription_safe(self, text: str):
-        self.transcription_text.setPlainText(text)
-        scrollbar = self.transcription_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-
-    def _set_status_safe(self, msg: str):
-        self.status_label.setText(f"Estado: {msg}")
-
-    def _set_llm_safe(self, text: str):
-        self.llm_text.setPlainText(text)
-        scrollbar = self.llm_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
-            self.close()
-        if event.key() == Qt.Key_Space and event.modifiers() & Qt.ControlModifier:
-            self.toggle_recording()
-        super().keyPressEvent(event)
-
-    def closeEvent(self, event):
-        self.assistant.cleanup()
-        self.tray_icon.hide()
-        if hasattr(self, "hotkeys"):
-            self.hotkeys.stop()
-        QApplication.quit()
-
-    def quit_app(self):
-        self.assistant.cleanup()
-        self.tray_icon.hide()
-        QApplication.quit()
-
     def move_to_top_center(self):
         screen = QApplication.primaryScreen().availableGeometry()
         w = self.width()
@@ -693,7 +667,32 @@ class OverlayWindow(QWidget):
         self.settings["collapsed"] = self.is_collapsed
         self._save_settings()
         self.adjustSize()
-        self.update_position()
+
+    def _apply_global_opacity(self, value):
+        self.opacity = value
+        self.settings["overlay_opacity"] = value
+        self._save_settings()
+        self.setWindowOpacity(value / 100.0)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            # Check if clicked on drag_handle or header_row area (simplified: drag_handle + button row)
+            # Actually, let's just make the top part (header_row + control_row) draggable
+            if event.pos().y() < 80: # Rough approximation of header height
+                 self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+                 event.accept()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            if not self._drag_pos.isNull():
+                self.move(event.globalPos() - self._drag_pos)
+                event.accept()
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = QPoint()
+        super().mouseReleaseEvent(event)
 
     def _apply_styles(self):
         self.setStyleSheet("""
@@ -781,6 +780,20 @@ class OverlayWindow(QWidget):
                 padding: 8px;
                 font-size: 12px;
             }
+            QLineEdit {
+                background-color: rgba(14, 20, 34, 200);
+                color: #e5e7eb;
+                border: 1px solid rgba(255, 255, 255, 35);
+                border-radius: 8px;
+                padding: 4px;
+            }
+            QComboBox {
+                background-color: rgba(18, 28, 44, 200);
+                color: #e5e7eb;
+                border: 1px solid rgba(255, 255, 255, 50);
+                border-radius: 8px;
+                padding: 4px;
+            }
             #warningLabel {
                 color: #fbbf24;
                 font-size: 11px;
@@ -802,6 +815,29 @@ class OverlayWindow(QWidget):
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 border: none;
                 background: none;
+            }
+            QSlider::groove:horizontal {
+                border: 1px solid rgba(255, 255, 255, 30);
+                height: 4px;
+                background: rgba(0, 0, 0, 100);
+                margin: 2px 0;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal {
+                background: #60a5fa;
+                border: 1px solid rgba(255, 255, 255, 50);
+                width: 14px;
+                height: 14px;
+                margin: -5px 0;
+                border-radius: 7px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: #93c5fd;
+            }
+            #dragHandle {
+                color: #94a3b8;
+                font-weight: bold;
+                font-size: 14px;
             }
         """)
 

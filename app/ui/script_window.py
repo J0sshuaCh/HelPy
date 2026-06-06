@@ -52,9 +52,23 @@ class ScriptWindow(QWidget):
         outer.setContentsMargins(10, 10, 10, 10)
         outer.setSpacing(6)
 
-        header_row = QHBoxLayout()
-        header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.addStretch(1)
+        # Header Area - outside container (same style as overlay_window)
+        self.header_area = QFrame(self)
+        self.header_area.setObjectName("headerArea")
+        header_layout = QHBoxLayout(self.header_area)
+        header_layout.setContentsMargins(10, 10, 10, 2)
+        header_layout.setSpacing(5)
+
+        title_label = QLabel("Guion")
+        title_label.setStyleSheet("""
+            font-weight: bold;
+            color: #60a5fa;
+            font-size: 14px;
+            background-color: rgba(26, 36, 54, 200);
+            border: 1px solid rgba(255, 255, 255, 40);
+            border-radius: 8px;
+            padding: 2px 10px;
+        """)
 
         self.capture_button = QPushButton(self)
         self.capture_button.setObjectName("edgeButton")
@@ -68,9 +82,12 @@ class ScriptWindow(QWidget):
         self.edge_button.setText("")
         self.edge_button.clicked.connect(self.toggle_collapsed)
 
-        header_row.addWidget(self.capture_button, 0)
-        header_row.addWidget(self.edge_button, 0)
-        outer.addLayout(header_row)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch(1)
+        header_layout.addWidget(self.capture_button)
+        header_layout.addWidget(self.edge_button)
+
+        outer.addWidget(self.header_area)
 
         self.container = QFrame(self)
         self.container.setObjectName("overlayContainer")
@@ -79,20 +96,17 @@ class ScriptWindow(QWidget):
         container_layout.setSpacing(10)
         self.container.setLayout(container_layout)
 
-        title_row = QHBoxLayout()
-        self.title_label = QLabel("Guion (MD/PDF/TXT)", self)
-        self.title_label.setObjectName("sectionLabel")
-        title_row.addWidget(self.title_label)
-        title_row.addStretch(1)
-        container_layout.addLayout(title_row)
-
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
 
         self.open_button = QPushButton("Abrir Archivo", self)
         self.open_button.clicked.connect(self.open_script_file)
         button_row.addWidget(self.open_button)
-        
+
+        supported_label = QLabel("Archivos soportados (MD/PDF/TXT)")
+        supported_label.setObjectName("statusLabel")
+        button_row.addWidget(supported_label)
+
         button_row.addStretch(1)
 
         opacity_label = QLabel("Opacidad:", self)
@@ -401,13 +415,9 @@ class ScriptWindow(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            # Check title label area for dragging
-            title_local = self.title_label.mapFrom(self, event.pos())
-            if self.title_label.rect().contains(title_local):
+            if event.pos().y() < 80:
                 self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
                 event.accept()
-                return
-            
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
