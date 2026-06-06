@@ -14,9 +14,13 @@ from PyQt5.QtWidgets import (
     QTextEdit,
     QFrame,
     QFileDialog,
+    QScrollArea,
+    QStackedWidget,
+    QSlider,
+    QGraphicsOpacityEffect,
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QImage, QPixmap
 
 
 class ScriptWindow(QWidget):
@@ -27,6 +31,11 @@ class ScriptWindow(QWidget):
         self.is_collapsed = bool(self.settings.get("script_collapsed", False))
         self.capture_visible = bool(self.settings.get("script_capture_visible", False))
         self._last_script_path = self.settings.get("script_path")
+        self._zoom_factor = float(self.settings.get("script_zoom", 1.0))
+        self._opacity = float(self.settings.get("script_opacity", 0.85))
+        
+        # Dragging support
+        self._drag_pos = None
 
         self._init_ui()
         self._apply_settings()
@@ -70,9 +79,12 @@ class ScriptWindow(QWidget):
         container_layout.setSpacing(10)
         self.container.setLayout(container_layout)
 
-        title = QLabel("Guion (MD/PDF/TXT)", self)
-        title.setObjectName("sectionLabel")
-        container_layout.addWidget(title)
+        title_row = QHBoxLayout()
+        self.title_label = QLabel("Guion (MD/PDF/TXT)", self)
+        self.title_label.setObjectName("sectionLabel")
+        title_row.addWidget(self.title_label)
+        title_row.addStretch(1)
+        container_layout.addLayout(title_row)
 
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
@@ -80,7 +92,21 @@ class ScriptWindow(QWidget):
         self.open_button = QPushButton("Abrir Archivo", self)
         self.open_button.clicked.connect(self.open_script_file)
         button_row.addWidget(self.open_button)
+        
         button_row.addStretch(1)
+
+        opacity_label = QLabel("Opacidad:", self)
+        opacity_label.setObjectName("statusLabel")
+        button_row.addWidget(opacity_label)
+
+        self.opacity_slider = QSlider(Qt.Horizontal, self)
+        self.opacity_slider.setMinimum(20)
+        self.opacity_slider.setMaximum(100)
+        self.opacity_slider.setValue(int(self._opacity * 100))
+        self.opacity_slider.setFixedWidth(100)
+        self.opacity_slider.valueChanged.connect(self._on_opacity_slider_changed)
+        button_row.addWidget(self.opacity_slider)
+
         container_layout.addLayout(button_row)
 
         self.path_label = QLabel("", self)
@@ -88,11 +114,33 @@ class ScriptWindow(QWidget):
         self.path_label.setText("Arrastra un archivo aqui o usa Abrir")
         container_layout.addWidget(self.path_label)
 
+        # Viewer Stack: Switch between Text and PDF
+        self.viewer_stack = QStackedWidget(self)
+        
+        # Text/Markdown Viewer
         self.md_view = QTextEdit(self)
         self.md_view.setReadOnly(True)
         self.md_view.setObjectName("textArea")
         self.md_view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        container_layout.addWidget(self.md_view)
+        
+        # PDF Viewer (Scroll Area with Image Labels)
+        self.pdf_scroll = QScrollArea(self)
+        self.pdf_scroll.setWidgetResizable(True)
+        self.pdf_scroll.setObjectName("pdfScroll")
+        self.pdf_scroll.setStyleSheet("background: transparent; border: none;")
+        self.pdf_container = QWidget()
+        self.pdf_container.setObjectName("pdfContainer")
+        self.pdf_container.setStyleSheet("background: transparent;")
+        self.pdf_layout = QVBoxLayout(self.pdf_container)
+        self.pdf_layout.setContentsMargins(0, 0, 0, 0)
+        self.pdf_layout.setSpacing(10)
+        self.pdf_layout.setAlignment(Qt.AlignHCenter)
+        self.pdf_scroll.setWidget(self.pdf_container)
+
+        self.viewer_stack.addWidget(self.md_view)
+        self.viewer_stack.addWidget(self.pdf_scroll)
+        
+        container_layout.addWidget(self.viewer_stack)
 
         outer.addWidget(self.container)
         self.setLayout(outer)
@@ -103,6 +151,7 @@ class ScriptWindow(QWidget):
         self.show()
         self.adjustSize()
         self.update_position()
+        self._apply_global_opacity()
 
     def _apply_window_size(self):
         screen = QApplication.primaryScreen().availableGeometry()
@@ -113,8 +162,11 @@ class ScriptWindow(QWidget):
         # Viewer height: keep window compact but usable.
         min_h = int(screen.height() * 0.25)
         max_h = int(screen.height() * 0.60)
-        self.md_view.setMinimumHeight(max(180, min_h))
+        h_val = max(180, min_h)
+        self.md_view.setMinimumHeight(h_val)
         self.md_view.setMaximumHeight(max(260, max_h))
+        self.pdf_scroll.setMinimumHeight(h_val)
+        self.pdf_scroll.setMaximumHeight(max(260, max_h))
 
         self.adjustSize()
 
@@ -137,7 +189,7 @@ class ScriptWindow(QWidget):
         self.settings["script_collapsed"] = self.is_collapsed
         self._save_settings()
         self.adjustSize()
-        self.update_position()
+        # Removed update_position() here to preserve user-set position
 
     def toggle_capture_visibility(self):
         self.capture_visible = not self.capture_visible
@@ -195,33 +247,113 @@ class ScriptWindow(QWidget):
         else:
             self.path_label.setText(f"Formato no soportado: {path}")
 
+    def _on_opacity_slider_changed(self, value):
+        self._opacity = value / 100.0
+        self.settings["script_opacity"] = self._opacity
+        self._save_settings()
+        self._apply_global_opacity()
+
+    def _apply_global_opacity(self):
+        # 1. Apply to the whole window
+        self.setWindowOpacity(self._opacity)
+        
+        # 2. Apply specifically to PDF pages if they exist
+        for i in range(self.pdf_layout.count()):
+            widget = self.pdf_layout.itemAt(i).widget()
+            if widget:
+                # We use a graphics effect for the content to ensure it blends well
+                # though setWindowOpacity already does most of the work, 
+                # this ensures the labels themselves don't have opaque backgrounds.
+                effect = QGraphicsOpacityEffect(widget)
+                effect.setOpacity(1.0) # Window opacity handles the rest
+                widget.setGraphicsEffect(effect)
+
     def load_pdf(self, path: str):
         try:
+            self._clear_pdf_layout()
             doc = fitz.open(path)
-            text = ""
-            for page in doc:
-                text += page.get_text()
-            doc.close()
             
-            if not text.strip():
-                text = "*El PDF no contiene texto extraíble.*"
+            # Use high DPI for base images
+            zoom = 2.0 
+            mat = fitz.Matrix(zoom, zoom)
+
+            for page in doc:
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                fmt = QImage.Format_RGB888
+                img = QImage(pix.samples, pix.width, pix.height, pix.stride, fmt)
                 
-            self.md_view.setPlainText(text)
+                label = QLabel()
+                pixmap = QPixmap.fromImage(img)
+                label.setPixmap(pixmap)
+                # Store the original pixmap for resizing
+                label.setProperty("original_pixmap", pixmap)
+                label.setAlignment(Qt.AlignCenter)
+                
+                # Apply initial opacity effect container
+                effect = QGraphicsOpacityEffect(label)
+                effect.setOpacity(1.0) # Controlled by window opacity
+                label.setGraphicsEffect(effect)
+                
+                self.pdf_layout.addWidget(label)
+            
+            doc.close()
+            self._last_script_path = path
+            self.viewer_stack.setCurrentWidget(self.pdf_scroll)
+            self._update_pdf_pages_size()
             self._update_after_load(path)
         except Exception as exc:
             self.path_label.setText(f"Error PDF: {exc}")
+
+    def _clear_pdf_layout(self):
+        for i in reversed(range(self.pdf_layout.count())): 
+            widget = self.pdf_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+                widget.deleteLater()
+
+    def _update_pdf_pages_size(self):
+        if self.viewer_stack.currentWidget() != self.pdf_scroll:
+            return
+            
+            # Target width: container width minus scrollbar and margins
+        target_width = int((self.container.width() - 45) * self._zoom_factor)
+        
+        for i in range(self.pdf_layout.count()):
+            label = self.pdf_layout.itemAt(i).widget()
+            if isinstance(label, QLabel):
+                orig = label.property("original_pixmap")
+                if orig:
+                    scaled = orig.scaledToWidth(target_width, Qt.SmoothTransformation)
+                    label.setPixmap(scaled)
+                    
+                # Re-apply effect after scaling if needed
+                if not label.graphicsEffect():
+                    effect = QGraphicsOpacityEffect(label)
+                    effect.setOpacity(1.0)
+                    label.setGraphicsEffect(effect)
 
     def load_txt(self, path: str):
         text = self._read_text_file(path)
         if text is not None:
             self.md_view.setPlainText(text)
+            self._apply_text_zoom()
+            self.viewer_stack.setCurrentWidget(self.md_view)
             self._update_after_load(path)
 
     def load_markdown(self, path: str):
         text = self._read_text_file(path)
         if text is not None:
             self.md_view.setMarkdown(text)
+            self._apply_text_zoom()
+            self.viewer_stack.setCurrentWidget(self.md_view)
             self._update_after_load(path)
+
+    def _apply_text_zoom(self):
+        # Base size is 13px, apply zoom factor
+        new_size = max(8, int(13 * self._zoom_factor))
+        font = self.md_view.font()
+        font.setPointSize(new_size)
+        self.md_view.setFont(font)
 
     def _read_text_file(self, path: str):
         try:
@@ -243,7 +375,12 @@ class ScriptWindow(QWidget):
         self.settings["script_path"] = path
         self._save_settings()
         self.path_label.setText(path)
-        self.md_view.verticalScrollBar().setValue(0)
+        
+        # Scroll to top
+        if self.viewer_stack.currentWidget() == self.md_view:
+            self.md_view.verticalScrollBar().setValue(0)
+        else:
+            self.pdf_scroll.verticalScrollBar().setValue(0)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -262,6 +399,28 @@ class ScriptWindow(QWidget):
         path = urls[0].toLocalFile()
         self.load_script(path)
 
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            # Check title label area for dragging
+            title_local = self.title_label.mapFrom(self, event.pos())
+            if self.title_label.rect().contains(title_local):
+                self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+                event.accept()
+                return
+            
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
+            self.move(event.globalPos() - self._drag_pos)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
+
     def showEvent(self, event):
         super().showEvent(event)
         self.update_position()
@@ -269,7 +428,26 @@ class ScriptWindow(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.update_position()
+        # Removed update_position() here to preserve user-set position
+        self._update_pdf_pages_size()
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._zoom_factor = min(3.0, self._zoom_factor + 0.1)
+            else:
+                self._zoom_factor = max(0.5, self._zoom_factor - 0.1)
+            
+            self.settings["script_zoom"] = self._zoom_factor
+            self._save_settings()
+            
+            if self.viewer_stack.currentWidget() == self.pdf_scroll:
+                self._update_pdf_pages_size()
+            else:
+                self._apply_text_zoom()
+            return
+        super().wheelEvent(event)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
@@ -297,7 +475,7 @@ class ScriptWindow(QWidget):
             self.load_script(self._last_script_path)
 
         self.adjustSize()
-        self.update_position()
+        # Removed update_position() here to preserve user-set position
 
     def _apply_styles(self):
         # Same visual language as overlay_window.py, slightly transparent.
@@ -350,26 +528,63 @@ class ScriptWindow(QWidget):
                 color: #e5e7eb;
                 border: 1px solid rgba(255, 255, 255, 35);
                 border-radius: 8px;
-                padding: 10px;
-                font-size: 12px;
+                padding: 15px;
+                font-size: 13px;
+                line-height: 150%;
             }
-            QScrollBar:vertical {
+            #pdfScroll {
+                background-color: rgba(14, 20, 34, 150);
+                border: 1px solid rgba(255, 255, 255, 35);
+                border-radius: 8px;
+            }
+            QScrollBar:vertical, QScrollBar:horizontal {
                 border: none;
-                background: rgba(10, 15, 25, 100);
-                width: 8px;
-                border-radius: 4px;
+                background: rgba(14, 20, 34, 150);
+                width: 10px;
+                height: 10px;
+                margin: 0px 0px 0px 0px;
+                border-radius: 5px;
             }
-            QScrollBar::handle:vertical {
-                background: rgba(255, 255, 255, 50);
-                min-height: 20px;
-                border-radius: 4px;
+            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+                background: rgba(255, 255, 255, 40);
+                min-height: 30px;
+                min-width: 30px;
+                border-radius: 5px;
+                border: 1px solid rgba(255, 255, 255, 20);
             }
-            QScrollBar::handle:vertical:hover {
-                background: rgba(255, 255, 255, 80);
+            QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+                background: rgba(255, 255, 255, 70);
             }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 border: none;
                 background: none;
+                height: 0px;
+                width: 0px;
+            }
+            QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical,
+            QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {
+                border: none;
+                background: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+            }
+            QSlider::handle:horizontal {
+                background: #e5e7eb;
+                border: 1px solid #555;
+                width: 14px;
+                height: 14px;
+                margin: -5px 0;
+                border-radius: 7px;
+            }
+            QSlider::groove:horizontal {
+                border: 1px solid #333;
+                height: 4px;
+                background: rgba(255, 255, 255, 30);
+                margin: 2px 0;
+                border-radius: 2px;
             }
             """
         )
