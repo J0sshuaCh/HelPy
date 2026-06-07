@@ -21,7 +21,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QImage, QPixmap
-
+from app.ui.themes import obtener_qss
 
 class ScriptWindow(QWidget):
     def __init__(self, parent=None):
@@ -33,12 +33,17 @@ class ScriptWindow(QWidget):
         self._last_script_path = self.settings.get("script_path")
         self._zoom_factor = float(self.settings.get("script_zoom", 1.0))
         self._opacity = float(self.settings.get("script_opacity", 0.85))
+        self.tema_actual = self.settings.get("tema", "Slate Minimalist")
         
         # Dragging support
         self._drag_pos = None
 
         self._init_ui()
         self._apply_settings()
+
+    def cambiar_tema_interfaz(self, nombre_tema):
+        self.tema_actual = nombre_tema
+        self._apply_styles()
 
     def _init_ui(self):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -475,121 +480,7 @@ class ScriptWindow(QWidget):
         # Removed update_position() here to preserve user-set position
 
     def _apply_styles(self):
-        self.setStyleSheet(
-            """
-            QWidget {
-                font-family: "Inter", "Roboto", "Segoe UI", "Arial", sans-serif;
-            }
-            #overlayContainer {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(26, 40, 62, 190), stop:1 rgba(16, 24, 38, 190));
-                border: 1px solid rgba(255, 255, 255, 20);
-                border-radius: 8px;
-            }
-            QLabel {
-                color: #e5e7eb;
-                font-size: 12px;
-            }
-            #statusLabel {
-                color: #94a3b8;
-                font-size: 11px;
-            }
-            #sectionLabel {
-                font-size: 13px;
-                font-weight: bold;
-                color: #F3F4F6;
-                padding-left: 4px;
-            }
-            #edgeButton {
-                background-color: rgba(26, 36, 54, 190);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 6px 10px;
-                font-size: 11px;
-                min-height: 22px;
-            }
-            #edgeButton:hover {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            QPushButton {
-                background-color: rgba(28, 40, 62, 190);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 8px;
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            QTextEdit#textArea {
-                background-color: rgba(20, 32, 52, 220);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 15px;
-                font-size: 13px;
-                line-height: 150%;
-            }
-            #pdfScroll {
-                background-color: rgba(20, 32, 52, 220);
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-            }
-            QScrollBar:vertical, QScrollBar:horizontal {
-                border: none;
-                background: rgba(14, 20, 34, 150);
-                width: 10px;
-                height: 10px;
-                margin: 0px 0px 0px 0px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-                background: rgba(255, 255, 255, 40);
-                min-height: 30px;
-                min-width: 30px;
-                border-radius: 5px;
-                border: 1px solid rgba(255, 255, 255, 20);
-            }
-            QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-                background: rgba(255, 255, 255, 70);
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                border: none;
-                background: none;
-                height: 0px;
-                width: 0px;
-            }
-            QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical,
-            QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {
-                border: none;
-                background: none;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-                background: none;
-            }
-            QSlider::handle:horizontal {
-                background: #60a5fa;
-                border: 1px solid rgba(255, 255, 255, 50);
-                width: 14px;
-                height: 14px;
-                margin: -5px 0;
-                border-radius: 7px;
-            }
-            QSlider::groove:horizontal {
-                border: 1px solid rgba(255, 255, 255, 30);
-                height: 4px;
-                background: rgba(0, 0, 0, 100);
-                margin: 2px 0;
-                border-radius: 2px;
-            }
-            """
-        )
+        self.setStyleSheet(obtener_qss(self.tema_actual))
 
     def _config_path(self):
         base = os.path.join(os.path.dirname(__file__), "..", "config")

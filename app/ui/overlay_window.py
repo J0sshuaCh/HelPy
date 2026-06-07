@@ -32,6 +32,7 @@ from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor, QPainter, QFont
 
 from app.core.assistant_controller import AssistantController
 from app.core.llm_client import get_llm_client
+from app.ui.themes import PALETAS, obtener_qss
 
 
 class OverlayWindow(QWidget):
@@ -89,15 +90,7 @@ class OverlayWindow(QWidget):
         header_layout.setSpacing(5)
         
         title_label = QLabel("HelPy")
-        title_label.setStyleSheet("""
-            font-weight: bold;
-            color: #60a5fa;
-            font-size: 14px;
-            background-color: rgba(26, 36, 54, 200);
-            border: 1px solid rgba(255, 255, 255, 40);
-            border-radius: 8px;
-            padding: 2px 10px;
-        """)
+        title_label.setObjectName("appTitle")
         
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setRange(20, 100)
@@ -246,7 +239,14 @@ class OverlayWindow(QWidget):
         self.llm_toggle_button = QPushButton("Configurar LLM:", self)
         self.llm_toggle_button.setObjectName("sectionToggle")
         self.llm_toggle_button.clicked.connect(self.toggle_llm_config)
+        
+        self.selector_temas = QComboBox(self)
+        self.selector_temas.setObjectName("deviceCombo")
+        self.selector_temas.addItems(list(PALETAS.keys()))
+        self.selector_temas.currentTextChanged.connect(self.cambiar_tema_interfaz)
+        
         ai_header_row.addWidget(self.llm_toggle_button, 0)
+        ai_header_row.addWidget(self.selector_temas, 0)
         ai_header_row.addStretch(1)
         ai_config_layout.addLayout(ai_header_row)
 
@@ -257,6 +257,7 @@ class OverlayWindow(QWidget):
         ai_form_layout.setContentsMargins(12, 8, 12, 12)
 
         self.ai_provider_combo = QComboBox(self)
+        self.ai_provider_combo.setObjectName("deviceCombo")
         self.ai_provider_combo.addItems(["LM Studio", "Google", "Groq", "Local (llama.cpp)"])
         ai_form_layout.addRow("Proveedor:", self.ai_provider_combo)
 
@@ -333,7 +334,12 @@ class OverlayWindow(QWidget):
         self._load_ai_settings()
         self.ai_provider_combo.currentIndexChanged.connect(self._on_ai_provider_changed)
         self._apply_llm_config_visibility()
-        self._apply_styles()
+        
+        # Tema inicial
+        tema_guardado = self.settings.get("tema", "Slate Minimalist")
+        self.selector_temas.setCurrentText(tema_guardado)
+        self.cambiar_tema_interfaz(tema_guardado)
+        
         self._build_device_menus()
         self._apply_window_size()
         
@@ -695,171 +701,23 @@ class OverlayWindow(QWidget):
         self._drag_pos = QPoint()
         super().mouseReleaseEvent(event)
 
-    def _apply_styles(self):
-        self.setStyleSheet("""
-            QWidget {
-                font-family: "Inter", "Roboto", "Segoe UI", "Arial", sans-serif;
-            }
-            #overlayContainer {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(26, 40, 62, 210), stop:1 rgba(16, 24, 38, 210));
-                border: 1px solid rgba(255, 255, 255, 20);
-                border-radius: 8px;
-            }
-            QLabel {
-                color: #e5e7eb;
-                font-size: 12px;
-            }
-            #statusLabel {
-                color: #94a3b8;
-                font-size: 11px;
-            }
-            #sectionLabel {
-                font-size: 13px;
-                font-weight: bold;
-                color: #F3F4F6;
-                padding-left: 4px;
-            }
-            #deviceCombo {
-                background-color: rgba(18, 28, 44, 200);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 6px 8px;
-                font-size: 12px;
-            }
-            #sectionToggle {
-                background-color: rgba(26, 36, 54, 200);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 8px;
-                padding: 6px 10px;
-                font-size: 11px;
-                min-height: 24px;
-                text-align: left;
-            }
-            #sectionToggle:hover {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            #edgeButton {
-                background-color: rgba(26, 36, 54, 200);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 6px 10px;
-                font-size: 11px;
-                min-height: 22px;
-            }
-            #edgeButton:hover {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            #modeButton {
-                background-color: rgba(20, 30, 46, 200);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 8px;
-                padding: 6px 10px;
-                font-size: 11px;
-                min-height: 24px;
-            }
-            #modeButton:hover {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            #modeButton:checked {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            QPushButton {
-                background-color: rgba(28, 40, 62, 205);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 40);
-                border-radius: 8px;
-                padding: 6px 10px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: rgba(96, 165, 250, 220);
-                border-color: rgba(255, 255, 255, 80);
-            }
-            QTextEdit#textArea {
-                background-color: rgba(20, 32, 52, 220);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 8px;
-                font-size: 13px;
-            }
-            QLineEdit {
-                background-color: rgba(20, 32, 52, 220);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 6px;
-            }
-            QComboBox {
-                background-color: rgba(20, 32, 52, 220);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 50);
-                border-radius: 8px;
-                padding: 4px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: rgba(20, 32, 52, 240);
-                color: #e5e7eb;
-                border: 1px solid rgba(255, 255, 255, 60);
-                border-radius: 4px;
-                selection-background-color: rgba(96, 165, 250, 220);
-                selection-color: #ffffff;
-                padding: 2px;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                padding: 6px 10px;
-                min-height: 24px;
-            }
-            QComboBox QAbstractItemView::item:hover {
-                background-color: rgba(96, 165, 250, 120);
-            }
-            #warningLabel {
-                color: #fbbf24;
-                font-size: 11px;
-            }
-            QScrollBar:vertical {
-                border: none;
-                background: rgba(10, 15, 25, 100);
-                width: 8px;
-                border-radius: 4px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgba(255, 255, 255, 50);
-                min-height: 20px;
-                border-radius: 4px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: rgba(255, 255, 255, 80);
-            }
-            QSlider::groove:horizontal {
-                border: 1px solid rgba(255, 255, 255, 30);
-                height: 4px;
-                background: rgba(0, 0, 0, 100);
-                margin: 2px 0;
-                border-radius: 2px;
-            }
-            QSlider::handle:horizontal {
-                background: #60a5fa;
-                border: 1px solid rgba(255, 255, 255, 50);
-                width: 14px;
-                height: 14px;
-                margin: -5px 0;
-                border-radius: 7px;
-            }
-            QSlider::handle:horizontal:hover {
-                background: #93c5fd;
-            }
-        """)
+    def cambiar_tema_interfaz(self, nombre_tema):
+        self.settings["tema"] = nombre_tema
+        self._save_settings()
+        self._apply_styles(nombre_tema)
+
+    def cambiar_tema_interfaz(self, nombre_tema):
+        self.settings["tema"] = nombre_tema
+        self._save_settings()
+        self._apply_styles(nombre_tema)
+        
+        # Actualizar otras ventanas
+        for widget in QApplication.topLevelWidgets():
+            if hasattr(widget, "cambiar_tema_interfaz") and widget != self:
+                widget.cambiar_tema_interfaz(nombre_tema)
+
+    def _apply_styles(self, tema_nombre="Slate Minimalist"):
+        self.setStyleSheet(obtener_qss(tema_nombre))
 
     def _update_device_tooltips(self):
         self.mic_combo.setToolTip(self.mic_combo.currentText())
