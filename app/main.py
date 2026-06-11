@@ -1,4 +1,17 @@
 import sys
+import os
+
+# Hook seguro para DLLs de llama.cpp
+if getattr(sys, 'frozen', False):
+    try:
+        # Intentamos añadir la carpeta de DLLs si existe
+        dll_path = os.path.join(sys._MEIPASS, 'llama_cpp', 'lib')
+        if os.path.exists(dll_path):
+            os.add_dll_directory(dll_path)
+    except Exception:
+        pass # Ignoramos errores de carga de DLL, si falla, Windows intentará buscar por defecto
+
+import tempfile
 import traceback
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication
@@ -9,16 +22,13 @@ def _try_create_overlay_window():
         from app.ui.overlay_window import OverlayWindow
         return OverlayWindow()
     except Exception as e:
-        # Imprimir el error directamente en consola para diagnóstico inmediato
-        import traceback
         print("\n" + "="*50)
         print(f"ERROR AL INICIAR OverlayWindow: {e}")
         traceback.print_exc()
         print("="*50 + "\n")
         
-        # Mantener el log en archivo por si acaso
-        import os
-        log_path = os.path.join(os.path.dirname(__file__), "overlay_error.log")
+        log_dir = tempfile.gettempdir()
+        log_path = os.path.join(log_dir, "ayudin_overlay_error.log")
         with open(log_path, "w") as f:
             f.write("Error: No se pudo iniciar OverlayWindow. Traceback:\n")
             traceback.print_exc(file=f)

@@ -1,34 +1,37 @@
 import json
-import re
 import subprocess
 import time
 import socket
 import os
-import requests
 import sys
+import requests
 from pathlib import Path
+from typing import Optional
+
 from openai import OpenAI
 
-# Singleton instance
+from app.utils.path_utils import resource_path, writable_config_path
+
 _instance = None
 
 class LlmClient:
     def __init__(self):
-        self.provider = None
+        self.provider: Optional[str] = None
         self.client = None
-        self.model_id = None
+        self.model_id: Optional[str] = None
         self._inference_process = None
         self._inference_port = None
+        self._local_error: Optional[str] = None
         self.reload()
 
-    def _get_config_path(self):
-        base = Path(__file__).resolve().parents[1] / "config"
-        return base / "config.json"
+    def _get_config_path(self) -> Path:
+        return Path(writable_config_path("config.json"))
 
-    def _find_free_port(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('', 0))
-            return s.getsockname()[1]
+    def _resolve_model_path(self, model_id: str) -> Path:
+        model_path = Path(model_id)
+        if not model_path.is_absolute():
+            model_path = Path(resource_path(model_id))
+        return model_path
 
     def _stop_inference_server(self):
         if self._inference_process:
@@ -81,71 +84,48 @@ class LlmClient:
         else:
             self.client = None
 
-    def _start_local_server(self, model_id):
+    def _start_local_server(self, model_id: Optional[str]):
         if not model_id:
             return
 
-        model_path = Path(model_id)
-        if not model_path.is_absolute():
-            model_path = Path(__file__).resolve().parents[2] / model_path
-
+        model_path = self._resolve_model_path(model_id)
         if not model_path.exists():
             self._local_error = f"No se encuentra el modelo en: {model_path}"
             return
 
-        # Intentamos usar un puerto fijo primero para consistencia en debug
         self._inference_port = 5555
-        server_script = Path(__file__).resolve().parent / "inference_server.py"
-        log_path = Path(__file__).resolve().parents[2] / "inference_server.log"
         
-        # Forzamos el uso del python del entorno virtual (.venv)
-        root_dir = Path(__file__).resolve().parents[2]
-        if os.name == 'nt':
-            python_exe = str(root_dir / ".venv" / "Scripts" / "python.exe")
+        # En PyInstaller, el servidor es un ejecutable separado
+        if getattr(sys, 'frozen', False):
+            # En modo onedir, el servidor está en el mismo directorio que AYUDIN.exe
+            executable = Path(sys.executable).parent / "inference_server.exe"
+            cmd = [str(executable)]
         else:
-            python_exe = str(root_dir / ".venv" / "bin" / "python")
-
-        # Fallback si por alguna razon no existe en esa ruta
-        if not os.path.exists(python_exe):
+            # En desarrollo, usamos el script python
             python_exe = sys.executable
+            server_script = Path(__file__).resolve().parents[1] / "core" / "inference_server.py"
+            cmd = [python_exe, str(server_script)]
 
-        print(f"Lanzando servidor de inferencia con: {python_exe}")
+        cmd.extend(["--model_path", str(model_path), "--port", str(self._inference_port)])
         
         try:
-            # Abrimos el log en modo append
-            with open(log_path, "a", encoding="utf-8") as log_file:
-                log_file.write(f"\n--- INICIO SERVIDOR {time.ctime()} ---\n")
-                self._inference_process = subprocess.Popen(
-                    [python_exe, str(server_script), "--model_path", str(model_path), "--port", str(self._inference_port)],
-                    stdout=log_file,
-                    stderr=log_file,
-                    cwd=str(root_dir),
-                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-                )
+            self._inference_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            )
             
-            # Wait for server to be ready
-            max_retries = 45 
-            for i in range(max_retries):
-                if self._inference_process.poll() is not None:
-                    # Si el proceso murio, leemos el final del log
-                    if log_path.exists():
-                        with open(log_path, "r", encoding="utf-8") as f:
-                            last_lines = f.readlines()[-5:]
-                            self._local_error = f"Servidor murio. Ultimos logs: {' '.join(last_lines)}"
-                    else:
-                        self._local_error = "El servidor de inferencia se cerro inesperadamente."
-                    return
-
+            # Wait for server
+            for i in range(45):
                 try:
                     resp = requests.get(f"http://127.0.0.1:{self._inference_port}/health", timeout=1)
                     if resp.status_code == 200 and resp.json().get("loaded"):
-                        print(f"Servidor listo en puerto {self._inference_port}.")
                         return
-                except:
-                    pass
+                except: pass
                 time.sleep(1)
             
-            self._local_error = "Timeout: El servidor no respondio en 45s."
+            self._local_error = "Timeout: El servidor no respondio"
         except Exception as e:
             self._local_error = f"Error al lanzar el subproceso: {e}"
 
@@ -154,9 +134,7 @@ class LlmClient:
 
         if self.provider == "Local":
             if not self._inference_port:
-                err = getattr(self, '_local_error', 'No inicializado')
-                return f"Error Local: {err}"
-            
+                return f"Error Local: {self._local_error or 'No inicializado'}"
             try:
                 resp = requests.post(
                     f"http://127.0.0.1:{self._inference_port}/ask",
@@ -165,16 +143,15 @@ class LlmClient:
                 )
                 if resp.status_code == 200:
                     return resp.json().get("response", "")
-                else:
-                    return f"Error en servidor local: {resp.json().get('error', 'Unknown')}"
+                return "Error en servidor local"
             except Exception as e:
-                return f"Error de comunicacion con el modelo local: {e}"
+                return f"Error: {e}"
 
         if not self.client or not self.model_id:
-            return "Error: El cliente de IA no está configurado."
+            return "Error: El cliente de IA no esta configurado."
 
         try:
-            if self.provider == "LM Studio" or self.provider == "Groq":
+            if self.provider in ("LM Studio", "Groq"):
                 respuesta = self.client.chat.completions.create(
                     model=self.model_id,
                     messages=[
@@ -185,7 +162,6 @@ class LlmClient:
                 )
                 return respuesta.choices[0].message.content
             elif self.provider == "Google":
-                # Assuming simplified usage of google-genai
                 response = self.client.models.generate_content(
                     model=self.model_id,
                     contents=f"{system_prompt}\n\nUsuario: {prompt}",

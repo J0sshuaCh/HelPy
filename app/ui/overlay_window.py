@@ -3,6 +3,7 @@ import ctypes
 import time
 import json
 import os
+from pathlib import Path
 
 import sounddevice as sd
 import soundcard as sc
@@ -33,6 +34,7 @@ from PyQt5.QtGui import QScreen, QIcon, QPixmap, QColor, QPainter, QFont
 from app.core.assistant_controller import AssistantController
 from app.core.llm_client import get_llm_client
 from app.ui.themes import PALETAS, obtener_qss
+from app.utils.path_utils import asset_path, writable_config_path
 
 
 class OverlayWindow(QWidget):
@@ -273,7 +275,12 @@ class OverlayWindow(QWidget):
         model_row.addWidget(self.model_id_input, 1)
         self.browse_model_btn = QPushButton("Examinar...", self)
         self.browse_model_btn.clicked.connect(self._browse_model)
+        self.download_model_btn = QPushButton("Descargar modelo", self)
+        self.download_model_btn.setObjectName("downloadModelBtn")
+        self.download_model_btn.clicked.connect(self._download_model)
+        self.download_model_btn.setVisible(False)
         model_row.addWidget(self.browse_model_btn, 0)
+        model_row.addWidget(self.download_model_btn, 0)
         ai_form_layout.addRow("Model ID:", model_container)
 
         ai_button_row = QHBoxLayout()
@@ -748,7 +755,7 @@ class OverlayWindow(QWidget):
             self.sys_combo.blockSignals(False)
 
     def _config_path(self):
-        return self._get_config_path("ui_settings.json")
+        return writable_config_path("ui_settings.json")
 
     def _load_settings(self):
         path = self._config_path()
@@ -771,8 +778,7 @@ class OverlayWindow(QWidget):
             pass
 
     def _get_config_path(self, filename="config.json"):
-        base = os.path.join(os.path.dirname(__file__), "..", "config")
-        return os.path.abspath(os.path.join(base, filename))
+        return writable_config_path(filename)
 
     def _on_ai_provider_changed(self, index):
         provider = self.ai_provider_combo.currentText()
@@ -780,9 +786,19 @@ class OverlayWindow(QWidget):
             self.api_key_input.setVisible(False)
             self.model_id_input.setPlaceholderText("Ruta al modelo .gguf")
             self.browse_model_btn.setVisible(True)
+            model_id = self.model_id_input.text().strip()
+            if model_id:
+                model_path = Path(model_id)
+                if not model_path.is_absolute():
+                    from app.utils.path_utils import resource_path
+                    model_path = Path(resource_path(model_id))
+                self.download_model_btn.setVisible(not model_path.exists())
+            else:
+                self.download_model_btn.setVisible(True)
         else:
             self.api_key_input.setVisible(True)
             self.browse_model_btn.setVisible(False)
+            self.download_model_btn.setVisible(False)
             if provider == "Groq":
                 self.model_id_input.setPlaceholderText("Opcional: openai/gpt-oss-120b")
             elif provider == "Google":
@@ -857,6 +873,39 @@ class OverlayWindow(QWidget):
         )
         if path:
             self.model_id_input.setText(path)
+
+    def _download_model(self):
+        self.download_model_btn.setEnabled(False)
+        self.download_model_btn.setText("Descargando...")
+        self.ai_status_label.setText("Descargando modelo (769 MB)...")
+        QApplication.processEvents()
+
+        from huggingface_hub import hf_hub_download
+
+        if getattr(sys, 'frozen', False):
+            base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+            model_dir = base / "AYUDIN" / "models"
+        else:
+            model_dir = Path(__file__).resolve().parent.parent.parent / "models"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        dest = model_dir / "gemma-3-1b-it-Q4_K_M.gguf"
+
+        try:
+            hf_hub_download(
+                repo_id="google/gemma-3-1b-it-GGUF",
+                filename="gemma-3-1b-it-Q4_K_M.gguf",
+                local_dir=str(model_dir),
+                local_dir_use_symlinks=False,
+                resume=True,
+            )
+            self.ai_status_label.setText("Descarga completada!")
+            self.model_id_input.setText(str(dest))
+            self.download_model_btn.setVisible(False)
+        except Exception as e:
+            self.ai_status_label.setText(f"Error: {e}")
+        finally:
+            self.download_model_btn.setEnabled(True)
+            self.download_model_btn.setText("Descargar modelo")
 
     def toggle_llm_config(self):
         self.llm_config_collapsed = not self.llm_config_collapsed
@@ -1039,8 +1088,7 @@ class OverlayWindow(QWidget):
         return QIcon()
 
     def _asset_path(self, relative: str) -> str:
-        base = os.path.join(os.path.dirname(__file__), "..", "assets")
-        return os.path.abspath(os.path.join(base, relative))
+        return asset_path(relative)
 
 
 if __name__ == "__main__":

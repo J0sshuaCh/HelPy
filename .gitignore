@@ -40,6 +40,14 @@ id_ed25519
 recordings/
 app/config/ui_settings.json
 
+# PyInstaller build output
+dist/
+build/
+*.spec
+
+# User config copy (PyInstaller mode)
+ayudin_config/
+
 # Models
 models/gemma-3-1b-it-Q4_K_M.gguf
 

@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QImage, QPixmap
 from app.ui.themes import obtener_qss
+from app.utils.path_utils import asset_path, writable_config_path
 
 class ScriptWindow(QWidget):
     def __init__(self, parent=None):
@@ -483,8 +484,7 @@ class ScriptWindow(QWidget):
         self.setStyleSheet(obtener_qss(self.tema_actual))
 
     def _config_path(self):
-        base = os.path.join(os.path.dirname(__file__), "..", "config")
-        return os.path.abspath(os.path.join(base, "ui_settings.json"))
+        return writable_config_path("ui_settings.json")
 
     def _load_settings(self):
         path = self._config_path()
@@ -513,8 +513,7 @@ class ScriptWindow(QWidget):
         return QIcon()
 
     def _asset_path(self, relative: str) -> str:
-        base = os.path.join(os.path.dirname(__file__), "..", "assets")
-        return os.path.abspath(os.path.join(base, relative))
+        return asset_path(relative)
 
 
 if __name__ == "__main__":

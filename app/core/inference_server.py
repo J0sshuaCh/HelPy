@@ -4,7 +4,7 @@ import logging
 from flask import Flask, request, jsonify
 from waitress import serve
 
-# Desactivar logs innecesarios de Flask/Waitress para no llenar el buffer de pipe
+# Desactivar logs innecesarios de Flask/Waitress
 logging.getLogger('waitress').setLevel(logging.ERROR)
 
 app = Flask(__name__)
@@ -57,8 +57,6 @@ if __name__ == "__main__":
         )
         print("Modelo cargado exitosamente.")
         
-        # Usamos waitress en lugar de app.run() para evitar el Windows Error 6
-        print(f"Servidor listo en http://localhost:{args.port}")
         serve(app, host='127.0.0.1', port=args.port, _quiet=True)
         
     except Exception as e:
