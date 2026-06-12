@@ -34,6 +34,9 @@ id_ecdsa
 id_ed25519
 *.ppk
 
+# Backup files
+*.bak
+
 # Logs
 *.log
 
