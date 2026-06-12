@@ -21,14 +21,9 @@ if [ ! -d "$VENV_DIR" ]; then
   "$PY" -m venv "$VENV_DIR"
 fi
 
-echo "Installing pip requirements"
+echo "Installing project dependencies (from pyproject.toml)"
 "$VENV_DIR/bin/pip" install --upgrade pip
-if [ -f "$ROOT_DIR/requirements.txt" ]; then
-  "$VENV_DIR/bin/pip" install -r "$ROOT_DIR/requirements.txt"
-else
-  echo "requirements.txt not found in project root." >&2
-  exit 1
-fi
+"$VENV_DIR/bin/pip" install -e "$ROOT_DIR"
 
 echo "Installation complete. To run the app:"
 echo "  source $VENV_DIR/bin/activate"

@@ -14,12 +14,8 @@ if (-not (Test-Path -LiteralPath $Venv)) {
     python -m venv $Venv
 }
 
-if (Test-Path -LiteralPath (Join-Path $Root 'requirements.txt')) {
-    & "$Venv\Scripts\pip.exe" install -r (Join-Path $Root 'requirements.txt')
-} else {
-    Write-Error 'requirements.txt not found in project root.'
-    exit 1
-}
+& "$Venv\Scripts\pip.exe" install --upgrade pip
+& "$Venv\Scripts\pip.exe" install -e "$Root"
 
 Write-Host "Installation complete. To run the app (PowerShell):"
 Write-Host "  & $Venv\Scripts\Activate.ps1"
