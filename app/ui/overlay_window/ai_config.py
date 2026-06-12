@@ -138,7 +138,7 @@ class AIConfigPanel(QFrame):
             if provider == "Groq":
                 self.model_id_input.setPlaceholderText("Opcional: openai/gpt-oss-120b")
             elif provider == "Google":
-                self.model_id_input.setPlaceholderText("gemini-2.0-flash")
+                self.model_id_input.setPlaceholderText("gemini-3.1-flash-lite")
             else:
                 self.model_id_input.setPlaceholderText("ID del modelo")
 
@@ -184,7 +184,7 @@ class AIConfigPanel(QFrame):
         if provider == "Local (llama.cpp)":
             provider = "Local"
         if provider == "Google" and not model_id:
-            model_id = "gemini-2.0-flash"
+            model_id = "gemini-3.1-flash-lite"
         if provider == "Groq" and not model_id:
             model_id = "openai/gpt-oss-120b"
 
@@ -216,14 +216,9 @@ class AIConfigPanel(QFrame):
         QApplication.processEvents()
 
         from huggingface_hub import hf_hub_download
+        from app.utils.path_utils import writable_models_dir
 
-        if getattr(sys, 'frozen', False):
-            base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-            model_dir = base / "AYUDIN" / "models"
-        else:
-            model_dir = Path(__file__).resolve().parent.parent.parent.parent / "models"
-            
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_dir = Path(writable_models_dir())
         dest = model_dir / "gemma-3-1b-it-Q4_K_M.gguf"
 
         try:

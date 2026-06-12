@@ -70,4 +70,11 @@ if (Test-Path $exePath) {
 }
 
 Write-Host ""
+# Limpiar el inference_server.exe duplicado del root de dist/
+$rootServerExe = Join-Path $DistDir "inference_server.exe"
+if (Test-Path $rootServerExe) {
+    Remove-Item -Force $rootServerExe
+    Write-Host "Cleaned root inference_server.exe (duplicate)" -ForegroundColor Yellow
+}
+
 Write-Host "Done!" -ForegroundColor Cyan

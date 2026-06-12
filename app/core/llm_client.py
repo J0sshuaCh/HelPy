@@ -88,6 +88,8 @@ class LlmClient:
         if not model_id:
             return
 
+        self._local_error = None
+
         model_path = self._resolve_model_path(model_id)
         if not model_path.exists():
             self._local_error = f"No se encuentra el modelo en: {model_path}"
@@ -97,13 +99,13 @@ class LlmClient:
         
         # En PyInstaller, el servidor es un ejecutable separado
         if getattr(sys, 'frozen', False):
-            # En modo onedir, el servidor está en el mismo directorio que AYUDIN.exe
-            executable = Path(sys.executable).parent / "inference_server.exe"
+            # En modo onedir, el servidor está dentro del bundle dist/AYUDIN/
+            executable = Path(sys._MEIPASS).parent / "inference_server.exe"
             cmd = [str(executable)]
         else:
             # En desarrollo, usamos el script python
             python_exe = sys.executable
-            server_script = Path(__file__).resolve().parents[1] / "core" / "inference_server.py"
+            server_script = Path(__file__).resolve().parent / "inference_server.py"
             cmd = [python_exe, str(server_script)]
 
         cmd.extend(["--model_path", str(model_path), "--port", str(self._inference_port)])

@@ -35,3 +35,12 @@ def writable_config_path(filename: str) -> str:
     path = _bundle_dir() / "app" / "config" / filename
     path.parent.mkdir(parents=True, exist_ok=True)
     return str(path)
+
+
+def writable_models_dir() -> str:
+    if getattr(sys, 'frozen', False):
+        path = _appdata_dir() / "models"
+    else:
+        path = _bundle_dir() / "models"
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
