@@ -4,7 +4,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "ayudin"
-version = "0.2.0"
+version = "0.3.0"
 description = "Asistente de voz con transcripción y LLM local"
 requires-python = ">=3.8"
 authors = [{name = "AYUDIN"}]

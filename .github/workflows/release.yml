@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build AYUDIN.exe + inference_server.exe
+        run: |
+          python -m PyInstaller ayudin.spec --clean -y
+
+      - name: Clean duplicate inference_server.exe
+        run: |
+          if (Test-Path dist/inference_server.exe) { Remove-Item -Force dist/inference_server.exe }
+
+      - name: Zip artifact
+        run: |
+          Compress-Archive -Path dist/AYUDIN/* -DestinationPath AYUDIN-${{ github.ref_name }}.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: AYUDIN-*.zip
+          body: |
+            ## AYUDIN ${{ github.ref_name }}
+
+            ### Instalación
+            1. Descargar `AYUDIN-${{ github.ref_name }}.zip`
+            2. Extraer en cualquier carpeta
+            3. Ejecutar `AYUDIN.exe`
+
+            ### Configuración
+            - Abrir el programa → **Configurar LLM** → elegir proveedor
+            - Ingresar API key (Google, Groq) o ruta a modelo .gguf (Local)
+            - Click **Guardar**
+
+            > **IMPORTANTE:** Para el proveedor Local (llama.cpp) se necesita un modelo GGUF.
+            > Usá el botón **Descargar modelo** dentro del programa o descargalo manualmente desde HuggingFace.
+
+            ### Cambios en esta versión
+          generate_release_notes: true
