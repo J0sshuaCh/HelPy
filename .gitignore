@@ -37,6 +37,9 @@ id_ed25519
 # Backup files
 *.bak
 
+# IDE / editor configs
+.vscode/
+
 # Logs
 *.log
 
