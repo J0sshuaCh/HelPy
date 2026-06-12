@@ -33,6 +33,7 @@ class CapturePanel(QWidget):
         self.capture_both_btn.setIcon(get_icon("mic_monitor"))
         self.capture_both_btn.setIconSize(QSize(16, 16))
         self.capture_both_btn.setToolTip("Microfono y sistema")
+
         
         self.capture_mode_group.addButton(self.capture_mic_btn)
         self.capture_mode_group.addButton(self.capture_sys_btn)
@@ -41,3 +42,8 @@ class CapturePanel(QWidget):
         self.layout.addWidget(self.capture_mic_btn, 1)
         self.layout.addWidget(self.capture_sys_btn, 1)
         self.layout.addWidget(self.capture_both_btn, 1)
+
+    def reload_icons(self):
+        self.capture_mic_btn.setIcon(get_icon("mic"))
+        self.capture_sys_btn.setIcon(get_icon("monitor"))
+        self.capture_both_btn.setIcon(get_icon("mic_monitor"))

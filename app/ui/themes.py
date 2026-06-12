@@ -1,5 +1,5 @@
 PALETAS = {
-    "Slate Minimalist": {
+    "Slate Minimalist (Oscuro)": {
         "fondo": "#1E293B",
         "fondo_input": "#0F172A",
         "texto": "#F8FAFC",
@@ -8,7 +8,7 @@ PALETAS = {
         "borde": "#334155",
         "resaltado": "#60A5FA"
     },
-    "Cyber Obsidian": {
+    "Cyber Obsidian (Oscuro)": {
         "fondo": "#121214",
         "fondo_input": "#1A1A1E",
         "texto": "#FFFFFF",
@@ -17,7 +17,7 @@ PALETAS = {
         "borde": "#2A2A30",
         "resaltado": "#34D399"
     },
-    "Nordic Frost": {
+    "Nordic Frost (Oscuro)": {
         "fondo": "#2E3440",
         "fondo_input": "#242933",
         "texto": "#ECEFF4",
@@ -26,7 +26,7 @@ PALETAS = {
         "borde": "#3B4252",
         "resaltado": "#B48EAD"
     },
-    "Tokyo Night": {
+    "Tokyo Night (Oscuro)": {
         "fondo": "#1a1b26",
         "fondo_input": "#16161e",
         "texto": "#c0caf5",
@@ -35,7 +35,7 @@ PALETAS = {
         "borde": "#292e42",
         "resaltado": "#bb9af7"
     },
-    "Dark Earth": {
+    "Dark Earth (Oscuro)": {
         "fondo": "#2B2826",           # Tono café ultra oscuro (fondo de la imagen)
         "fondo_input": "#564b43",     # uno-5: Para cajas de texto y comboboxes
         "texto": "#ffdac2",           # uno-1: Tono crema para máxima legibilidad
@@ -44,7 +44,7 @@ PALETAS = {
         "borde": "#705e51",           # uno-4: Marrón medio para delimitar sin saturar
         "resaltado": "#b09045"        # duo-2: Mostaza para barras de desplazamiento o hovers
     },
-    "Dark Forest": {
+    "Dark Forest (Oscuro)": {
         "fondo": "#292C29",           # Tono oscuro general (basado en el fondo de la imagen)
         "fondo_input": "#585f58",     # uno-5: Verde grisáceo oscuro para inputs y cajas de texto
         "texto": "#ddf8dd",           # uno-1: Menta muy claro para máxima legibilidad
@@ -53,7 +53,7 @@ PALETAS = {
         "borde": "#738273",           # uno-4: Salvia oscuro para delimitar sin saturar
         "resaltado": "#99a659"        # duo-2: Verde oliva para hovers y barras de desplazamiento
     },
-    "Catppuccin Latte": {
+    "Catppuccin Latte (Claro)": {
         "fondo": "#eff1f5",
         "fondo_input": "#e6e9ef",
         "texto": "#4c4f69",
@@ -62,7 +62,7 @@ PALETAS = {
         "borde": "#ccd0da",
         "resaltado": "#04a5e5"
     },
-    "Solarized Light": {
+    "Solarized Light (Claro)": {
         "fondo": "#fdf6e3",
         "fondo_input": "#eee8d5",
         "texto": "#657b83",
@@ -75,7 +75,7 @@ PALETAS = {
 }
 
 def obtener_qss(tema_nombre):
-    t = PALETAS.get(tema_nombre, PALETAS["Slate Minimalist"])
+    t = PALETAS.get(tema_nombre, PALETAS["Slate Minimalist (Oscuro)"])
     
     return f"""
         QWidget {{ font-family: "Inter", "Segoe UI", sans-serif; }}

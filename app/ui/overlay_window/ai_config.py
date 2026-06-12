@@ -99,6 +99,9 @@ class AIConfigPanel(QFrame):
         self._apply_llm_config_visibility()
         self.theme_manager.apply_initial_theme(self.selector_temas)
 
+    def reload_icons(self):
+        self.llm_toggle_button.setIcon(get_icon("expand") if self.llm_config_collapsed else get_icon("collapse"))
+
     def toggle_llm_config(self):
         self.llm_config_collapsed = not self.llm_config_collapsed
         self.settings.set("llm_config_collapsed", self.llm_config_collapsed)

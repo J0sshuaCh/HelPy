@@ -12,6 +12,11 @@ class TrayManager(QObject):
         self.tray_icon = None
         self.init_tray_icon()
 
+    def reload_icons(self):
+        self.capture_mode_mic_action.setIcon(get_icon("mic"))
+        self.capture_mode_sys_action.setIcon(get_icon("monitor"))
+        self.capture_mode_both_action.setIcon(get_icon("mic_monitor"))
+
     def init_tray_icon(self):
         pixmap = QPixmap(16, 16)
         pixmap.fill(QColor(0, 120, 215))

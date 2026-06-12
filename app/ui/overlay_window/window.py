@@ -149,6 +149,17 @@ class OverlayWindow(DragMixin, QWidget):
         self._update_capture_mode_warning()
         self.setWindowOpacity(self.opacity / 100.0)
 
+    def reload_icons(self):
+        self._update_capture_button()
+        icon_name = "expand" if self.is_collapsed else "collapse"
+        self.header_area.edge_button.setIcon(get_icon(icon_name))
+        self.position_bar.reload_icons()
+        self.capture_panel.reload_icons()
+        if hasattr(self, "ai_config_panel"):
+            self.ai_config_panel.reload_icons()
+        if hasattr(self, "tray_manager"):
+            self.tray_manager.reload_icons()
+
     # --- Actions ---
     def toggle_recording(self):
         if self.recording:

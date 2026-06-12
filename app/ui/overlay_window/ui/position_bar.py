@@ -23,6 +23,7 @@ class PositionBar(QWidget):
         self.pos_right_btn.setObjectName("edgeButton")
         self.pos_right_btn.setIcon(get_icon("arrow_right"))
         self.pos_right_btn.setIconSize(QSize(14, 14))
+    
         
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setRange(20, 100)
@@ -36,3 +37,8 @@ class PositionBar(QWidget):
         self.layout.addStretch(1)
         self.layout.addWidget(QLabel("Opacidad:"))
         self.layout.addWidget(self.opacity_slider)
+
+    def reload_icons(self):
+        self.pos_left_btn.setIcon(get_icon("arrow_left"))
+        self.pos_center_btn.setIcon(get_icon("arrow_up"))
+        self.pos_right_btn.setIcon(get_icon("arrow_right"))

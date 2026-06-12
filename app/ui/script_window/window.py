@@ -23,7 +23,7 @@ class ScriptWindow(DragMixin, QWidget):
         self.capture_visible = bool(ui_settings.get("script_capture_visible", False))
         self._last_script_path = ui_settings.get("script_path")
         self._opacity = float(ui_settings.get("script_opacity", 0.85))
-        self.tema_actual = ui_settings.get("tema", "Slate Minimalist")
+        self.tema_actual = ui_settings.get("tema", "Slate Minimalist (Oscuro)")
         
         self.zoom_manager = ZoomManager(self, float(ui_settings.get("script_zoom", 1.0)))
         self.file_loader = FileLoader(self)
@@ -34,6 +34,9 @@ class ScriptWindow(DragMixin, QWidget):
     def cambiar_tema_interfaz(self, nombre_tema):
         self.tema_actual = nombre_tema
         self._apply_styles()
+        self._update_capture_button()
+        icon_name = "expand" if self.is_collapsed else "collapse"
+        self.edge_button.setIcon(get_icon(icon_name))
 
     def _init_ui(self):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
