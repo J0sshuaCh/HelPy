@@ -1,9 +1,0 @@
-{
-  "name": "ayudin",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "install": "sh ./scripts/install.sh || powershell -ExecutionPolicy Bypass -File .\\scripts\\install.ps1",
-    "start": "sh ./scripts/run.sh || powershell -ExecutionPolicy Bypass -File .\\scripts\\run.ps1"
-  }
-}
