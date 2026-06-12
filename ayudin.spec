@@ -38,6 +38,10 @@ hiddenimports = [
     "dotenv",
     "speech_recognition",
     "ctypes",
+    "certifi",
+    "httpx",
+    "httpcore",
+    "ssl",
 ]
 
 # 1. Análisis para AYUDIN (Main App)
@@ -47,7 +51,14 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=['tkinter', 'matplotlib', 'PIL', 'cv2'],
+    excludes=[
+        'tkinter', 'matplotlib', 'PIL', 'cv2',
+        'torch', 'torchvision', 'torchaudio',
+        'numba', 'scipy', 'pandas', 'sklearn',
+        'tensorflow', 'jax', 'ray',
+        'notebook', 'jupyter', 'ipython',
+        'bokeh', 'plotly', 'dash',
+    ],
     noarchive=False,
     cipher=block_cipher,
 )
@@ -94,6 +105,6 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     name='AYUDIN',
 )

@@ -76,7 +76,17 @@ class LlmClient:
         elif self.provider == "Groq":
             try:
                 from groq import Groq
-                self.client = Groq(api_key=api_key)
+                kwargs = {"api_key": api_key}
+                if getattr(sys, 'frozen', False):
+                    try:
+                        import httpx
+                        import certifi
+                        kwargs["http_client"] = httpx.Client(
+                            verify=certifi.where()
+                        )
+                    except ImportError:
+                        pass
+                self.client = Groq(**kwargs)
             except ImportError:
                 self.client = None
         elif self.provider == "Local":
