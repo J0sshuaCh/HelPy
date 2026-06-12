@@ -6,7 +6,8 @@ Aplicación de escritorio con interfaz PyQt5 que captura audio desde micrófono 
 
 ## Capturas
 
-*(Agrega capturas de pantalla aquí)*
+<img width="1919" height="1030" alt="image" src="https://github.com/user-attachments/assets/7c73df11-343c-4822-967a-7729941bcfb7" />
+
 
 ## Características
 
