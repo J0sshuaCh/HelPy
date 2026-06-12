@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ayudin"
-version = "0.3.0"
+version = "0.4.0"
 description = "Asistente de voz con transcripción y LLM local"
 requires-python = ">=3.8"
 authors = [{name = "AYUDIN"}]

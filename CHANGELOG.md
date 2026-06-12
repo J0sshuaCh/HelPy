@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0] - 2026-06-12
+
+### Added
+- Animated collapse functionality and new light themes for improved UI experience
+- `reload_icons` method for dynamic icon updates across UI components
+
+### Fixed
+- Groq client initialization with optional HTTP client for better connection handling
+
 ## [0.3.0] - 2026-06-12
 
 ### Added
