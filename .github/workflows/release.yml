@@ -26,9 +26,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Debug - list files
+        run: Get-ChildItem -Name *.spec, *.py, *.toml, *.txt
+
       - name: Build AYUDIN.exe + inference_server.exe
-        run: |
-          python -m PyInstaller ayudin.spec --clean -y
+        run: python -m PyInstaller ayudin.spec --clean -y
+        working-directory: ${{ github.workspace }}
 
       - name: Clean duplicate inference_server.exe
         run: |

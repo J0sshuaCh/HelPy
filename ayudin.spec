@@ -1,0 +1,99 @@
+# -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+
+block_cipher = None
+
+# Binarios de llama_cpp — resuelve la ruta dinámicamente donde sea que pip lo haya instalado
+import llama_cpp
+llama_lib_path = Path(llama_cpp.__file__).parent / "lib"
+binaries = [
+    (str(llama_lib_path / "ggml-base.dll"), "llama_cpp/lib"),
+    (str(llama_lib_path / "ggml-cpu.dll"), "llama_cpp/lib"),
+    (str(llama_lib_path / "ggml.dll"), "llama_cpp/lib"),
+    (str(llama_lib_path / "llama.dll"), "llama_cpp/lib"),
+    (str(llama_lib_path / "mtmd.dll"), "llama_cpp/lib"),
+]
+
+# Archivos compartidos
+datas = [
+    ("app/assets", "app/assets"),
+    ("app/config/config.json", "app/config"),
+]
+
+# Hidden imports necesarios
+hiddenimports = [
+    "sounddevice",
+    "soundcard",
+    "llama_cpp",
+    "llama_cpp.llama_cpp",
+    "openai",
+    "groq",
+    "google.genai",
+    "pynput",
+    "pynput.keyboard._win32",
+    "pynput.mouse._win32",
+    "fitz",
+    "requests",
+    "huggingface_hub",
+    "dotenv",
+    "speech_recognition",
+    "ctypes",
+]
+
+# 1. Análisis para AYUDIN (Main App)
+a = Analysis(
+    ['app/main.py'],
+    pathex=[],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
+    excludes=['tkinter', 'matplotlib', 'PIL', 'cv2'],
+    noarchive=False,
+    cipher=block_cipher,
+)
+pyz = PYZ(a.pure, cipher=block_cipher)
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='AYUDIN',
+    debug=False,
+    console=False,
+    icon=None,
+)
+
+# 2. Análisis para Inferencia (Subproceso)
+a_server = Analysis(
+    ['app/core/inference_server.py'],
+    pathex=[],
+    binaries=binaries,
+    datas=[],
+    hiddenimports=['llama_cpp', 'flask', 'waitress'],
+    excludes=[],
+    noarchive=False,
+    cipher=block_cipher,
+)
+pyz_server = PYZ(a_server.pure, cipher=block_cipher)
+exe_server = EXE(
+    pyz_server,
+    a_server.scripts,
+    a_server.binaries,
+    a_server.datas,
+    [],
+    name='inference_server',
+    debug=False,
+    console=False,
+)
+
+# 3. Collector (Juntar todo)
+coll = COLLECT(
+    exe,
+    exe_server,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    name='AYUDIN',
+)

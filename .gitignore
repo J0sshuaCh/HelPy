@@ -51,6 +51,7 @@ app/config/ui_settings.json
 dist/
 build/
 *.spec
+!ayudin.spec
 
 # User config copy (PyInstaller mode)
 ayudin_config/
