@@ -9,13 +9,14 @@ from app.ui.shared import (
     ui_settings, DragMixin, apply_capture_affinity, update_window_position, 
     get_icon
 )
+from app.ui.shared.animations import AnimatedCollapseMixin
 from app.ui.themes import obtener_qss
 
 from .ui import HeaderBar, Toolbar, TextViewer, PdfViewer
 from .file_loader import FileLoader
 from .zoom import ZoomManager
 
-class ScriptWindow(DragMixin, QWidget):
+class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -79,6 +80,8 @@ class ScriptWindow(DragMixin, QWidget):
 
         outer.addWidget(self.container)
 
+        self._setup_collapse_animation(self.container, self.edge_button, duration=300)
+
         self._apply_styles()
         self._apply_window_size()
 
@@ -112,16 +115,9 @@ class ScriptWindow(DragMixin, QWidget):
         self.move(x, margin)
 
     def toggle_collapsed(self):
-        self.is_collapsed = not self.is_collapsed
-        self.container.setVisible(not self.is_collapsed)
-        if self.is_collapsed:
-            self.edge_button.setIcon(get_icon("expand"))
-            self.edge_button.setToolTip("Expandir")
-        else:
-            self.edge_button.setIcon(get_icon("collapse"))
-            self.edge_button.setToolTip("Retractar")
+        self._animate_toggle_collapsed()
+        self.edge_button.setToolTip("Expandir" if self.is_collapsed else "Retractar")
         ui_settings.set("script_collapsed", self.is_collapsed)
-        self.adjustSize()
 
     def toggle_capture_visibility(self):
         self.capture_visible = not self.capture_visible

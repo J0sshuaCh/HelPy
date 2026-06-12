@@ -62,16 +62,60 @@ PALETAS = {
         "borde": "#ccd0da",
         "resaltado": "#04a5e5"
     },
-    "Solarized Light (Claro)": {
-        "fondo": "#fdf6e3",
-        "fondo_input": "#eee8d5",
-        "texto": "#657b83",
-        "texto_secundario": "#93a1a1",
-        "acento": "#268bd2",
-        "borde": "#d9d2c4",
-        "resaltado": "#2aa198"
+    "Light Emerald (Claro)": {
+        "fondo": "#F4F7F5",
+        "fondo_input": "#FFFFFF",
+        "texto": "#1A2E22",
+        "texto_secundario": "#607367",
+        "acento": "#10B981",          # Verde esmeralda vibrante
+        "borde": "#D1DBEC",
+        "resaltado": "#34D399"
     },
-
+    "Light Orchid (Claro)": {
+        "fondo": "#FAF5F7",
+        "fondo_input": "#FFFFFF",
+        "texto": "#2E1A25",
+        "texto_secundario": "#73606C",
+        "acento": "#EC4899",          # Rosado orquídea
+        "borde": "#EBD1DF",
+        "resaltado": "#F472B6"
+    },
+    "Light Amber (Claro)": {
+        "fondo": "#FAF7F4",
+        "fondo_input": "#FFFFFF",
+        "texto": "#2E241A",
+        "texto_secundario": "#736760",
+        "acento": "#F97316",          # Naranja energético
+        "borde": "#EBDCD1",
+        "resaltado": "#FB923C"
+    },
+    "Light Canary (Claro)": {
+        "fondo": "#FBFBEE",
+        "fondo_input": "#FFFFFF",
+        "texto": "#2E2E1A",
+        "texto_secundario": "#737360",
+        "acento": "#EAB308",          # Amarillo ocre (oscurecido para legibilidad sobre blanco)
+        "borde": "#EBEBD1",
+        "resaltado": "#FDE047"
+    },
+    "Light Crimson (Claro)": {
+        "fondo": "#FAF4F4",
+        "fondo_input": "#FFFFFF",
+        "texto": "#2E1A1A",
+        "texto_secundario": "#736060",
+        "acento": "#EF4444",          # Rojo carmesí
+        "borde": "#EBD1D1",
+        "resaltado": "#F87171"
+    },
+    "Light Amethyst (Claro)": {
+        "fondo": "#F6F4FA",
+        "fondo_input": "#FFFFFF",
+        "texto": "#201A2E",
+        "texto_secundario": "#656073",
+        "acento": "#8B5CF6",          # Morado amatista
+        "borde": "#D9D1EB",
+        "resaltado": "#A78BFA"
+    },
 }
 
 def obtener_qss(tema_nombre):

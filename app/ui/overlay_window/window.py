@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QSize
 
 from app.core.assistant_controller import AssistantController
 from app.ui.shared import ui_settings, DragMixin, apply_capture_affinity, update_window_position, apply_window_size, get_icon
+from app.ui.shared.animations import AnimatedCollapseMixin
 
 from .ui import HeaderArea, PositionBar, DevicePanel, CapturePanel, RecordingPanel, TextDisplayPanel
 from .device_manager import DeviceManager
@@ -12,7 +13,7 @@ from .ai_config import AIConfigPanel
 from .tray import TrayManager
 from .hotkeys import HotkeyManager
 
-class OverlayWindow(DragMixin, QWidget):
+class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     text_received = pyqtSignal(str)
     status_changed = pyqtSignal(str)
     llm_received = pyqtSignal(str)
@@ -127,6 +128,8 @@ class OverlayWindow(DragMixin, QWidget):
         
         self.main_layout.addWidget(self.container)
 
+        self._setup_collapse_animation(self.container, self.header_area.edge_button, duration=300)
+
     def _apply_settings(self):
         mic_mode = ui_settings.get("mic_mode")
         if mic_mode == "manual":
@@ -190,13 +193,9 @@ class OverlayWindow(DragMixin, QWidget):
         update_window_position(self, self.position_mode)
 
     def toggle_collapsed(self):
-        self.is_collapsed = not self.is_collapsed
-        self.container.setVisible(not self.is_collapsed)
-        icon_name = "expand" if self.is_collapsed else "collapse"
-        self.header_area.edge_button.setIcon(get_icon(icon_name))
+        self._animate_toggle_collapsed()
         self.header_area.edge_button.setToolTip("Expandir" if self.is_collapsed else "Retractar")
         ui_settings.set("collapsed", self.is_collapsed)
-        self.adjustSize()
 
     def toggle_capture_visibility(self):
         self.capture_visible = not self.capture_visible
@@ -287,7 +286,6 @@ class OverlayWindow(DragMixin, QWidget):
         desired = max(self.text_display.llm_min_height, min(desired, self.text_display.llm_max_height))
         self.text_display.llm_text.setFixedHeight(desired)
         self.adjustSize()
-        self.update_position()
 
     # --- Callbacks ---
     def _on_transcription_result(self, text: str):

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QFrame, QHBoxLayout, QLabel, QSlider, QPushButton
+from PyQt5.QtWidgets import QFrame, QHBoxLayout, QLabel, QSlider, QPushButton, QSizePolicy
 from PyQt5.QtCore import Qt, QSize
 from app.ui.shared import get_icon
 
@@ -34,3 +34,5 @@ class HeaderArea(QFrame):
         self.layout.addStretch(1)
         self.layout.addWidget(self.capture_button)
         self.layout.addWidget(self.edge_button)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(self.sizeHint().height())
