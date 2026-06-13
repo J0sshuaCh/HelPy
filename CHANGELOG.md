@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.1] - 2026-06-13
+
+### Fixed
+- PyInstaller build process updated with a custom hook for `webrtcvad-wheels` compatibility to prevent DLL import errors.
+
 ## [0.5.0] - 2026-06-13
 
 ### Added

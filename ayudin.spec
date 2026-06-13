@@ -51,6 +51,7 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
+    hookspath=['hooks'],
     excludes=[
         'tkinter', 'matplotlib', 'PIL', 'cv2',
         'torch', 'torchvision', 'torchaudio',
