@@ -8,13 +8,13 @@ class ThemeManager:
         self.main_window = main_window
 
     def apply_initial_theme(self, combo_box):
-        tema_guardado = self.settings.get("tema", "Slate Minimalist (Oscuro)")
+        tema_guardado = self.settings.get("tema", "Slate Minimalist (Clasico)")
         combo_box.setCurrentText(tema_guardado)
         self.cambiar_tema_interfaz(tema_guardado)
 
     def cambiar_tema_interfaz(self, nombre_tema):
         self.settings.set("tema", nombre_tema)
-        theme_data = PALETAS.get(nombre_tema, PALETAS["Slate Minimalist (Oscuro)"])
+        theme_data = PALETAS.get(nombre_tema, PALETAS["Slate Minimalist (Clasico)"])
         set_icon_color(theme_data["texto"])
         self.main_window.setStyleSheet(obtener_qss(nombre_tema))
         if hasattr(self.main_window, "reload_icons"):

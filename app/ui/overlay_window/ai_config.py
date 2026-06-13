@@ -6,9 +6,10 @@ from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, 
     QFormLayout, QLineEdit, QWidget, QLabel, QFileDialog, QApplication
 )
+from PyQt5.QtCore import QSize
 from app.core.llm_client import get_llm_client
 from app.utils.path_utils import writable_config_path
-from app.ui.themes import PALETAS
+from app.ui.themes import filtrar_temas_por_modo
 from app.ui.shared import get_icon
 
 class AIConfigPanel(QFrame):
@@ -19,6 +20,7 @@ class AIConfigPanel(QFrame):
         self.setObjectName("aiConfigGroup")
         
         self.llm_config_collapsed = bool(self.settings.get("llm_config_collapsed", True))
+        self.tema_modo = self.settings.get("tema_modo", "oscuro")
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -32,13 +34,21 @@ class AIConfigPanel(QFrame):
         
         self.selector_temas = QComboBox(self)
         self.selector_temas.setObjectName("deviceCombo")
-        self.selector_temas.addItems(list(PALETAS.keys()))
-        self.selector_temas.currentTextChanged.connect(self.theme_manager.cambiar_tema_interfaz)
+        self.selector_temas.currentIndexChanged.connect(self._on_tema_selected)
+        
+        self.toggle_modo_btn = QPushButton(self)
+        self.toggle_modo_btn.setObjectName("edgeButton")
+        self.toggle_modo_btn.setIconSize(QSize(14, 14))
+        self.toggle_modo_btn.setIcon(get_icon("moon"))
+        self.toggle_modo_btn.setToolTip("Temas oscuros")
+        self.toggle_modo_btn.clicked.connect(self.toggle_modo_tema)
         
         header_row.addWidget(self.llm_toggle_button, 0)
         header_row.addWidget(self.selector_temas, 0)
+        header_row.addWidget(self.toggle_modo_btn, 0)
         header_row.addStretch(1)
         layout.addLayout(header_row)
+        self._poblar_inicial()
 
         # Body
         self.ai_config_body = QFrame(self)
@@ -97,10 +107,11 @@ class AIConfigPanel(QFrame):
         
         self._load_ai_settings()
         self._apply_llm_config_visibility()
-        self.theme_manager.apply_initial_theme(self.selector_temas)
+        self._aplicar_tema_inicial()
 
     def reload_icons(self):
         self.llm_toggle_button.setIcon(get_icon("expand") if self.llm_config_collapsed else get_icon("collapse"))
+        self._actualizar_boton_modo()
 
     def toggle_llm_config(self):
         self.llm_config_collapsed = not self.llm_config_collapsed
@@ -115,6 +126,65 @@ class AIConfigPanel(QFrame):
         window = self.window()
         if window and hasattr(window, "adjustSize"):
             window.adjustSize()
+
+    def toggle_modo_tema(self):
+        orden = ["oscuro", "claro", "clasico"]
+        idx = orden.index(self.tema_modo)
+        self.tema_modo = orden[(idx + 1) % 3]
+        self.settings.set("tema_modo", self.tema_modo)
+        self._actualizar_boton_modo()
+        self._repopulate_temas()
+
+    def _actualizar_boton_modo(self):
+        iconos = {"oscuro": "moon", "claro": "sun", "clasico": "dna"}
+        tooltips = {"oscuro": "Temas oscuros", "claro": "Temas claros", "clasico": "Temas clásicos"}
+        self.toggle_modo_btn.setIcon(get_icon(iconos[self.tema_modo]))
+        self.toggle_modo_btn.setToolTip(tooltips[self.tema_modo])
+
+    def _on_tema_selected(self, index):
+        full_key = self.selector_temas.itemData(index)
+        if full_key:
+            self.theme_manager.cambiar_tema_interfaz(full_key)
+
+    def _poblar_inicial(self):
+        temas = filtrar_temas_por_modo(self.tema_modo)
+        for display, full_key in temas:
+            self.selector_temas.addItem(display, full_key)
+
+    def _repopulate_temas(self):
+        temas = filtrar_temas_por_modo(self.tema_modo)
+        full_key_actual = self.selector_temas.currentData()
+        self.selector_temas.blockSignals(True)
+        self.selector_temas.clear()
+        for display, full_key in temas:
+            self.selector_temas.addItem(display, full_key)
+        full_keys = [k for _, k in temas]
+        if full_key_actual and full_key_actual in full_keys:
+            self.selector_temas.setCurrentIndex(full_keys.index(full_key_actual))
+            self.selector_temas.blockSignals(False)
+        elif temas:
+            self.selector_temas.setCurrentIndex(0)
+            nuevo_tema = self.selector_temas.itemData(0)
+            self.selector_temas.blockSignals(False)
+            self.theme_manager.cambiar_tema_interfaz(nuevo_tema)
+        else:
+            self.selector_temas.blockSignals(False)
+
+    def _aplicar_tema_inicial(self):
+        tema_guardado = self.settings.get("tema", "Slate Minimalist (Clasico)")
+        full_keys = [self.selector_temas.itemData(i) for i in range(self.selector_temas.count())]
+        self.selector_temas.blockSignals(True)
+        if tema_guardado in full_keys:
+            self.selector_temas.setCurrentIndex(full_keys.index(tema_guardado))
+            nuevo_tema = tema_guardado
+        elif full_keys:
+            self.selector_temas.setCurrentIndex(0)
+            nuevo_tema = self.selector_temas.itemData(0)
+        else:
+            self.selector_temas.blockSignals(False)
+            return
+        self.selector_temas.blockSignals(False)
+        self.theme_manager.cambiar_tema_interfaz(nuevo_tema)
 
     def _get_config_path(self, filename="config.json"):
         return writable_config_path(filename)

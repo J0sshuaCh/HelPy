@@ -24,7 +24,7 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.capture_visible = bool(ui_settings.get("script_capture_visible", False))
         self._last_script_path = ui_settings.get("script_path")
         self._opacity = float(ui_settings.get("script_opacity", 0.85))
-        self.tema_actual = ui_settings.get("tema", "Slate Minimalist (Oscuro)")
+        self.tema_actual = ui_settings.get("tema", "Slate Minimalist (Clasico)")
         
         self.zoom_manager = ZoomManager(self, float(ui_settings.get("script_zoom", 1.0)))
         self.file_loader = FileLoader(self)
