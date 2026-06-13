@@ -14,6 +14,8 @@ class DualChannelTranscriber:
     def __init__(
         self,
         language: str = "es-ES",
+        stt_provider: str = "google",
+        whisper_model: str = "tiny",
         mic_device_index: Optional[int] = None,
         system_device_index: Optional[int] = None,
         capture_mode: str = "both",
@@ -26,6 +28,10 @@ class DualChannelTranscriber:
         on_text: Optional[Callable[[str, str], None]] = None,
     ):
         self.language = language
+        self.stt_provider = stt_provider
+        self.whisper_model_size = whisper_model
+        self._whisper_model = None
+        self._vad = None
         self.mic_device_index = mic_device_index
         self.system_device_index = system_device_index
         self.capture_mode = capture_mode
@@ -66,6 +72,17 @@ class DualChannelTranscriber:
     def start(self):
         if self._running:
             return True, []
+            
+        if self.stt_provider == "whisper" and self._whisper_model is None:
+            try:
+                import webrtcvad
+                from faster_whisper import WhisperModel
+                print(f"[SISTEMA] Cargando modelo Whisper '{self.whisper_model_size}'...")
+                self._vad = webrtcvad.Vad(3)
+                self._whisper_model = WhisperModel(self.whisper_model_size, device="cpu", compute_type="int8")
+            except Exception as e:
+                print(f"[SISTEMA] Error cargando Whisper: {e}")
+                return False, [f"Error cargando Whisper: {e}"]
         warnings = []
         started_any = False
         self._running = True
@@ -163,6 +180,78 @@ class DualChannelTranscriber:
         self._mic_stop_event = threading.Event()
         self._mic_queue = queue.Queue()
         threshold = float(self.mic_energy_threshold)
+
+        if self.stt_provider == "whisper":
+            sample_rate = 16000
+            bytes_per_sample = 2
+            frame_duration_ms = 30
+            frame_size = int(sample_rate * (frame_duration_ms / 1000.0))
+            
+            print(f"[YO] Usando dispositivo {device_index} ({api_name}): {device_info.get('name')} a {sample_rate}Hz (Whisper)")
+
+            def _callback(indata, frames, time_info, status):
+                if self._mic_stop_event.is_set(): return
+                audio = indata
+                if audio.ndim > 1: audio = np.mean(audio, axis=1)
+                audio_int16 = audio.astype(np.int16)
+                self._mic_queue.put(audio_int16.tobytes())
+
+            def _worker():
+                speech_buffer = bytearray()
+                is_speaking = False
+                silence_frames = 0
+                max_silence_frames = int(0.6 / (frame_duration_ms / 1000.0))
+
+                while not self._mic_stop_event.is_set():
+                    try:
+                        frame = self._mic_queue.get(timeout=0.2)
+                    except queue.Empty:
+                        continue
+                    
+                    if len(frame) != frame_size * 2: continue
+                        
+                    is_speech = self._vad.is_speech(frame, sample_rate)
+                    
+                    if is_speech:
+                        if not is_speaking: is_speaking = True
+                        speech_buffer.extend(frame)
+                        silence_frames = 0
+                    else:
+                        if is_speaking:
+                            speech_buffer.extend(frame)
+                            silence_frames += 1
+                            if silence_frames >= max_silence_frames:
+                                audio_np = np.frombuffer(bytes(speech_buffer), dtype=np.int16).astype(np.float32) / 32768.0
+                                if len(audio_np) > sample_rate * 0.5:
+                                    try:
+                                        segments, _ = self._whisper_model.transcribe(audio_np, language="es", beam_size=5)
+                                        texto = " ".join([s.text for s in segments]).strip()
+                                        if texto: self._append_text("YO", texto)
+                                    except Exception as e:
+                                        print(f"[YO] Error Whisper: {e}")
+                                speech_buffer = bytearray()
+                                is_speaking = False
+                                silence_frames = 0
+
+            self._mic_stream = sd.InputStream(
+                samplerate=sample_rate, device=device_index, channels=channels,
+                dtype="int16", blocksize=frame_size, callback=_callback
+            )
+            self._mic_stream.start()
+            self._mic_thread = threading.Thread(target=_worker, daemon=True)
+            self._mic_thread.start()
+
+            def _stop_mic_fn(wait_for_stop=False):
+                self._mic_stop_event.set()
+                if self._mic_stream:
+                    self._mic_stream.stop()
+                    self._mic_stream.close()
+                    self._mic_stream = None
+                if wait_for_stop and self._mic_thread:
+                    self._mic_thread.join(timeout=2)
+            self._stop_mic = _stop_mic_fn
+            return
+
 
         def _callback(indata, frames, time_info, status):
             if self._mic_stop_event.is_set():
@@ -329,6 +418,30 @@ class DualChannelTranscriber:
         def _worker():
             # Solucion al error 0x800401f0 (CoInitialize no llamado)
             ctypes.windll.ole32.CoInitialize(None)
+            
+            if self.stt_provider == "whisper":
+                try:
+                    with mic.recorder(samplerate=sample_rate) as recorder:
+                        while not self._sys_stop_event.is_set():
+                            try:
+                                # 3 seconds latency chunk for system
+                                data = recorder.record(numframes=sample_rate * 3)
+                                if data.ndim > 1: data = np.mean(data, axis=1)
+                                audio_np = data.astype(np.float32)
+                                
+                                rms = np.sqrt(np.mean(audio_np ** 2))
+                                if rms > 0.002: # Only process if there's actual sound
+                                    segments, _ = self._whisper_model.transcribe(audio_np, language="es", beam_size=5)
+                                    texto = " ".join([s.text for s in segments]).strip()
+                                    if texto: self._append_text("SISTEMA", texto)
+                            except Exception as e:
+                                if not self._sys_stop_event.is_set(): print(f"[SISTEMA] Error en captura: {e}")
+                                break
+                finally:
+                    ctypes.windll.ole32.CoUninitialize()
+                return
+
+
             try:
                 with mic.recorder(samplerate=sample_rate) as recorder:
                     while not self._sys_stop_event.is_set():

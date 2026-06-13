@@ -29,8 +29,22 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.opacity = ui_settings.get("overlay_opacity", 100)
         self.capture_mode = ui_settings.get("capture_mode", "both")
         
+        import json
+        from app.utils.path_utils import writable_config_path
+        stt_provider = "google"
+        whisper_model = "tiny"
+        try:
+            with open(writable_config_path("config.json"), "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                stt_provider = cfg.get("stt_provider", "google")
+                whisper_model = cfg.get("whisper_model", "tiny")
+        except:
+            pass
+
         # Core Assistant
         self.assistant = AssistantController(
+            stt_provider=stt_provider,
+            whisper_model=whisper_model,
             mic_device_index=ui_settings.get("mic_device_index"),
             system_device_index=ui_settings.get("system_device_index"),
             capture_mode=self.capture_mode,

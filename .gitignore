@@ -2,7 +2,7 @@
 .venv/
 venv/
 env/
-
+.agents
 # Python bytecode / caches
 __pycache__/
 *.py[cod]

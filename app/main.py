@@ -1,6 +1,13 @@
 import sys
 import os
 
+# Solucionar conflicto de DLL en Windows entre torch (faster-whisper) y PyQt5
+try:
+    import torch
+    import faster_whisper
+except ImportError:
+    pass
+
 # Hook seguro para DLLs de llama.cpp
 if getattr(sys, 'frozen', False):
     try:

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2026-06-13
+
+### Added
+- Hybrid STT system with `faster-whisper` for local transcription and `Google` for cloud transcription.
+- `webrtcvad` for accurate Voice Activity Detection (VAD) on microphone.
+- Dynamic selection of STT Provider and Whisper Model size in AI Config Panel.
+- Dependencies for `faster-whisper` and `webrtcvad-wheels` in `pyproject.toml` and `requirements.txt`.
+
+### Changed
+- `DualChannelTranscriber` refactored to support multiple STT providers.
+- System audio loopback updated to support `faster-whisper` without fixed chunks using continuous RMS validation.
+- `AssistantController` updated to handle STT provider configuration hot-swapping.
+- `app.main` import order adjusted to resolve DLL loading conflicts between `torch` and `PyQt5`.
+
 ## [0.4.0] - 2026-06-12
 
 ### Added

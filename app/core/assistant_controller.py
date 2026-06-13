@@ -8,6 +8,8 @@ class AssistantController:
     def __init__(
         self,
         stt_language: str = "es-ES",
+        stt_provider: str = "google",
+        whisper_model: str = "tiny",
         capture_mode: str = "both",
         mic_mode: str = "auto",
         mic_energy_threshold: int = 150,
@@ -18,6 +20,8 @@ class AssistantController:
     ):
         self.transcriber = DualChannelTranscriber(
             language=stt_language,
+            stt_provider=stt_provider,
+            whisper_model=whisper_model,
             mic_device_index=mic_device_index,
             system_device_index=system_device_index,
             capture_mode=capture_mode,
@@ -105,6 +109,22 @@ class AssistantController:
 
     def set_devices(self, mic_device_index: Optional[int], system_device_index: Optional[int]):
         self.transcriber.set_devices(mic_device_index, system_device_index)
+
+    def set_stt_settings(self, provider: str, model_size: str):
+        if self.transcriber.stt_provider == provider and self.transcriber.whisper_model_size == model_size:
+            return
+            
+        was_running = self.transcriber._running
+        if was_running:
+            self.transcriber.stop()
+            
+        self.transcriber.stt_provider = provider
+        if self.transcriber.whisper_model_size != model_size:
+            self.transcriber._whisper_model = None
+        self.transcriber.whisper_model_size = model_size
+        
+        if was_running:
+            self.start_recording()
 
     def set_capture_mode(self, capture_mode: str):
         started, warnings, was_running = self.transcriber.set_capture_mode(capture_mode)

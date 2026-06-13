@@ -60,6 +60,22 @@ class AIConfigPanel(QFrame):
         form_layout.setSpacing(10)
         form_layout.setContentsMargins(12, 8, 12, 12)
 
+        # --- STT Config ---
+        self.stt_provider_combo = QComboBox(self)
+        self.stt_provider_combo.addItems(["Google (Nube)", "Local (faster-whisper)"])
+        form_layout.addRow("STT Provider:", self.stt_provider_combo)
+
+        self.whisper_model_combo = QComboBox(self)
+        self.whisper_model_combo.addItems(["tiny", "base", "small"])
+        form_layout.addRow("Whisper Model:", self.whisper_model_combo)
+        
+        # Separator
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        form_layout.addRow(line)
+
+        # --- LLM Config ---
         self.ai_provider_combo = QComboBox(self)
         self.ai_provider_combo.setObjectName("deviceCombo")
         self.ai_provider_combo.addItems(["LM Studio", "Google", "Groq", "Local (llama.cpp)"])
@@ -103,6 +119,7 @@ class AIConfigPanel(QFrame):
         layout.addWidget(self.ai_config_body)
         
         # Connectors
+        self.stt_provider_combo.currentIndexChanged.connect(self._on_stt_provider_changed)
         self.ai_provider_combo.currentIndexChanged.connect(self._on_ai_provider_changed)
         
         self._load_ai_settings()
@@ -189,7 +206,17 @@ class AIConfigPanel(QFrame):
     def _get_config_path(self, filename="config.json"):
         return writable_config_path(filename)
 
+    def _on_stt_provider_changed(self, index):
+        provider = self.stt_provider_combo.currentText()
+        if "Local" in provider:
+            self.whisper_model_combo.setVisible(True)
+        else:
+            self.whisper_model_combo.setVisible(False)
+
     def _on_ai_provider_changed(self, index):
+        stt_provider_ui = self.stt_provider_combo.currentText()
+        stt_provider = "whisper" if "Local" in stt_provider_ui else "google"
+        whisper_model = self.whisper_model_combo.currentText()
         provider = self.ai_provider_combo.currentText()
         if provider == "Local (llama.cpp)":
             self.api_key_input.setVisible(False)
@@ -226,6 +253,17 @@ class AIConfigPanel(QFrame):
         except (OSError, json.JSONDecodeError):
             return
 
+        # STT Settings
+        stt_provider = ai_settings.get("stt_provider", "google")
+        whisper_model = ai_settings.get("whisper_model", "tiny")
+        if stt_provider == "whisper":
+            self.stt_provider_combo.setCurrentText("Local (faster-whisper)")
+            self.whisper_model_combo.setVisible(True)
+        else:
+            self.stt_provider_combo.setCurrentText("Google (Nube)")
+            self.whisper_model_combo.setVisible(False)
+        self.whisper_model_combo.setCurrentText(whisper_model)
+
         # Normalize: "Local" in config -> "Local (llama.cpp)" in UI combo
         provider_raw = ai_settings.get("provider", "LM Studio")
         provider = "Local (llama.cpp)" if provider_raw == "Local" else provider_raw
@@ -249,6 +287,9 @@ class AIConfigPanel(QFrame):
         folder = os.path.dirname(path)
         os.makedirs(folder, exist_ok=True)
 
+        stt_provider_ui = self.stt_provider_combo.currentText()
+        stt_provider = "whisper" if "Local" in stt_provider_ui else "google"
+        whisper_model = self.whisper_model_combo.currentText()
         provider = self.ai_provider_combo.currentText()
         api_key = self.api_key_input.text()
         model_id = self.model_id_input.text().strip()
@@ -262,6 +303,8 @@ class AIConfigPanel(QFrame):
             model_id = "openai/gpt-oss-120b"
 
         ai_settings = {
+            "stt_provider": stt_provider,
+            "whisper_model": whisper_model,
             "provider": provider,
             "api_key": api_key,
             "model_id": model_id,
@@ -272,6 +315,9 @@ class AIConfigPanel(QFrame):
                 json.dump(ai_settings, handle, indent=2)
             self.ai_status_label.setText("Guardado!")
             get_llm_client().reload()
+            window = self.window()
+            if hasattr(window, "assistant"):
+                window.assistant.set_stt_settings(stt_provider, whisper_model)
         except OSError:
             self.ai_status_label.setText("Error!")
 
