@@ -11,14 +11,14 @@ Aplicación de escritorio con interfaz PyQt5 que captura audio desde micrófono 
 
 ## Características
 
-- **Transcripción en tiempo real** — Captura dual micrófono + loopback del sistema simultáneamente
-- **Múltiples proveedores LLM** — Google Gemini, Groq, LM Studio (OpenAI-compatible), llama.cpp local
-- **Ventana overlay** — Siempre al frente, sin bordes, arrastrable, colapsable
-- **Visor de guiones/scripts** — Carga archivos Markdown, PDF y TXT con zoom y opacidad
-- **Temas visuales** — 8 temas: Slate Minimalist, Cyber Obsidian, Nordic Frost, Tokyo Night, Dark Earth, Dark Forest, Catppuccin Latte, Solarized Light
-- **Atajos globales de teclado** — `AltGr + \` enviar a LLM, `AltGr + G` grabar, `AltGr + H` colapsar
-- **Bandeja del sistema** — Icono en bandeja con menú contextual
-- **Modo local sin conexión** — Usa modelos GGUF descargados localmente
+- **Transcripción en tiempo real**    Captura dual micrófono + loopback del sistema simultáneamente
+- **Múltiples proveedores LLM**    Google Gemini, Groq, LM Studio (OpenAI-compatible), llama.cpp local
+- **Ventana overlay**    Siempre al frente, sin bordes, arrastrable, colapsable
+- **Visor de guiones/scripts**   Carga archivos Markdown, PDF y TXT con zoom y opacidad
+- **Temas visuales** 
+- **Atajos globales de teclado**    `AltGr + \` enviar a LLM, `AltGr + G` grabar, `AltGr + H` colapsar
+- **Bandeja del sistema**    Icono en bandeja con menú contextual
+- **Modo local sin conexión**    Usa modelos GGUF descargados localmente
 
 ## Requisitos
 
