@@ -17,7 +17,7 @@ binaries = [
 # Archivos compartidos
 datas = [
     ("app/assets", "app/assets"),
-    ("app/config/config.json", "app/config"),
+    ("app/config/config_template.json", "app/config"),
 ]
 
 # Hidden imports necesarios

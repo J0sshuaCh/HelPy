@@ -31,9 +31,19 @@ def writable_config_path(filename: str) -> str:
     if getattr(sys, 'frozen', False):
         path = _appdata_dir() / filename
         path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            bundle_path = _bundle_dir() / "app" / "config" / filename
+            if bundle_path.exists():
+                import shutil
+                shutil.copy2(str(bundle_path), str(path))
         return str(path)
     path = _bundle_dir() / "app" / "config" / filename
     path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        template = _bundle_dir() / "app" / "config" / "config_template.json"
+        if template.exists():
+            import shutil
+            shutil.copy2(str(template), str(path))
     return str(path)
 
 
