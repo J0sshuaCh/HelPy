@@ -1,7 +1,0 @@
-{
-  "stt_provider": "whisper",
-  "whisper_model": "small",
-  "provider": "Google",
-  "api_key": "",
-  "model_id": "gemini-3.1-flash-lite"
-}
