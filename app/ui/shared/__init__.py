@@ -4,6 +4,7 @@ from .drag_mixin import DragMixin
 from .capture_affinity import apply_capture_affinity
 from .animations import AnimatedCollapseMixin
 from .icons import get_icon, get_text_icon, set_icon_color
+from .spinner import LoadingSpinner, SpinnerOverlay
 
 __all__ = [
     "ui_settings",
@@ -16,4 +17,6 @@ __all__ = [
     "get_icon",
     "get_text_icon",
     "set_icon_color",
+    "LoadingSpinner",
+    "SpinnerOverlay",
 ]

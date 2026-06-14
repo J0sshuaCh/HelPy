@@ -1,9 +1,9 @@
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFrame, QApplication, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFrame, QApplication, QLabel
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 
 from app.core.assistant_controller import AssistantController
-from app.ui.shared import ui_settings, DragMixin, apply_capture_affinity, update_window_position, apply_window_size, get_icon
+from app.ui.shared import ui_settings, DragMixin, apply_capture_affinity, update_window_position, apply_window_size, get_icon, LoadingSpinner, SpinnerOverlay
 from app.ui.shared.animations import AnimatedCollapseMixin
 
 from .ui import HeaderArea, PositionBar, DevicePanel, CapturePanel, RecordingPanel, TextDisplayPanel, ContextPanel
@@ -18,6 +18,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     status_changed = pyqtSignal(str)
     llm_received = pyqtSignal(str)
     llm_chunk_received = pyqtSignal(str)
+    overlay_requested = pyqtSignal(bool, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -60,6 +61,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.status_changed.connect(self._set_status_safe)
         self.llm_received.connect(self._set_llm_safe)
         self.llm_chunk_received.connect(self._set_llm_chunk_safe)
+        self.overlay_requested.connect(self._set_overlay_safe)
 
         self._init_ui()
         
@@ -132,14 +134,23 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.context_panel = ContextPanel(ui_settings, self)
         self.container_layout.addWidget(self.context_panel)
         
+        status_row = QHBoxLayout()
+        status_row.setContentsMargins(0, 0, 0, 0)
+        status_row.setSpacing(6)
+        self.status_spinner = LoadingSpinner(self, size=14, line_width=2, speed=40)
+        status_row.addWidget(self.status_spinner)
         self.status_label = QLabel("Estado: listo", self)
         self.status_label.setObjectName("statusLabel")
-        self.container_layout.addWidget(self.status_label)
+        status_row.addWidget(self.status_label, 1)
+        self.container_layout.addLayout(status_row)
 
         self.warning_label = QLabel("", self)
         self.warning_label.setObjectName("warningLabel")
         self.warning_label.setVisible(False)
         self.container_layout.addWidget(self.warning_label)
+
+        self.overlay = SpinnerOverlay(self.container, spinner_size=48)
+        self.overlay.hide()
         
         # Text display added at the end
         self.text_display = TextDisplayPanel(self)
@@ -329,6 +340,21 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.status_label.setText(f"Estado: {msg}")
         if msg.startswith("No se pudo") or msg.startswith("Error"):
             self._set_warning(msg)
+
+        loading_keywords = [
+            "Escuchando", "Procesando audio", "Enviando a IA",
+            "Descargando modelo", "Cargando modelo",
+        ]
+        if any(kw in msg for kw in loading_keywords):
+            self.status_spinner.start()
+        else:
+            self.status_spinner.stop()
+
+    def _set_overlay_safe(self, visible: bool, text: str):
+        if visible:
+            self.overlay.show_overlay(text)
+        else:
+            self.overlay.hide_overlay()
 
     def _set_llm_chunk_safe(self, chunk: str):
         if not chunk:

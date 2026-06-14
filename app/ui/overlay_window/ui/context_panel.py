@@ -1,11 +1,12 @@
 import os
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QFileDialog, QTextEdit
+    QFileDialog, QTextEdit, QApplication
 )
 
 from app.utils.text_extractor import extraer_texto
 from app.core.llm_client import get_llm_client
+from app.ui.shared.spinner import LoadingSpinner
 
 
 class ContextPanel(QFrame):
@@ -37,9 +38,12 @@ class ContextPanel(QFrame):
         btn_row.setContentsMargins(0, 0, 0, 0)
         self.load_btn = QPushButton("Cargar Contexto", self)
         self.load_btn.clicked.connect(self._load_context)
+        self.context_spinner = LoadingSpinner(self, size=14, line_width=2, speed=40)
+        self.context_spinner.hide()
         self.clear_btn = QPushButton("Limpiar", self)
         self.clear_btn.clicked.connect(self._clear_context)
         btn_row.addWidget(self.load_btn)
+        btn_row.addWidget(self.context_spinner)
         btn_row.addWidget(self.clear_btn)
         btn_row.addStretch(1)
         body_layout.addLayout(btn_row)
@@ -83,6 +87,23 @@ class ContextPanel(QFrame):
                 self.settings.set("context_path", "")
                 self._update_ui("", "")
 
+    def _blocking_task(self, task_fn, status_text="Procesando..."):
+        self.context_spinner.start()
+        self.load_btn.setEnabled(False)
+        self.clear_btn.setEnabled(False)
+        self.status_label.setText(status_text)
+        QApplication.processEvents()
+        try:
+            result = task_fn()
+            return result
+        except Exception as e:
+            self.status_label.setText(f"Error: {e}")
+            return None
+        finally:
+            self.context_spinner.stop()
+            self.load_btn.setEnabled(True)
+            self.clear_btn.setEnabled(True)
+
     def _load_context(self):
         start_dir = ""
         if self._context_path and os.path.exists(self._context_path):
@@ -96,10 +117,11 @@ class ContextPanel(QFrame):
         if not path:
             return
 
-        try:
-            texto = extraer_texto(path)
-        except Exception as e:
-            self.status_label.setText(f"Error: {e}")
+        def load():
+            return extraer_texto(path)
+
+        texto = self._blocking_task(load, "Cargando contexto...")
+        if texto is None:
             return
 
         self._context_path = path
@@ -108,9 +130,13 @@ class ContextPanel(QFrame):
         self._update_ui(path, texto)
 
     def _clear_context(self):
+        def clear():
+            get_llm_client().clear_context()
+            return True
+
+        self._blocking_task(clear, "Limpiando contexto...")
         self._context_path = ""
         self.settings.set("context_path", "")
-        get_llm_client().clear_context()
         self._update_ui("", "")
 
     def _update_ui(self, path: str, texto: str):

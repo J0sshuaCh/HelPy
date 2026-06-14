@@ -6,11 +6,13 @@ from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, 
     QFormLayout, QLineEdit, QWidget, QLabel, QFileDialog, QApplication
 )
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QSize, QTimer
+from PyQt5.QtWidgets import QApplication
 from app.core.llm_client import get_llm_client
 from app.utils.path_utils import writable_config_path
 from app.ui.themes import filtrar_temas_por_modo
 from app.ui.shared import get_icon
+from app.ui.shared.spinner import LoadingSpinner
 
 class AIConfigPanel(QFrame):
     def __init__(self, settings, theme_manager, parent=None):
@@ -100,18 +102,22 @@ class AIConfigPanel(QFrame):
         self.download_model_btn.clicked.connect(self._download_model)
         self.download_model_btn.setVisible(False)
         
+        self.download_spinner = LoadingSpinner(self, size=14, line_width=2, speed=40)
+
         model_row.addWidget(self.browse_model_btn, 0)
+        model_row.addWidget(self.download_spinner, 0)
         model_row.addWidget(self.download_model_btn, 0)
         form_layout.addRow("Model ID:", model_container)
 
         button_row = QHBoxLayout()
+        self.save_spinner = LoadingSpinner(self, size=14, line_width=2, speed=40)
         self.save_ai_button = QPushButton("Guardar", self)
         self.save_ai_button.setObjectName("saveAIButton")
         self.save_ai_button.clicked.connect(self._save_ai_settings)
         self.ai_status_label = QLabel("", self)
         self.ai_status_label.setObjectName("statusLabel")
-        button_row.addWidget(self.ai_status_label)
-        button_row.addStretch(1)
+        button_row.addWidget(self.save_spinner, 0)
+        button_row.addWidget(self.ai_status_label, 1)
         button_row.addWidget(self.save_ai_button)
 
         body_layout.addLayout(form_layout)
@@ -283,43 +289,54 @@ class AIConfigPanel(QFrame):
             self.browse_model_btn.setVisible(False)
 
     def _save_ai_settings(self):
-        path = self._get_config_path()
-        folder = os.path.dirname(path)
-        os.makedirs(folder, exist_ok=True)
+        self.save_spinner.start()
+        self.save_ai_button.setEnabled(False)
+        self.save_ai_button.setText("Guardando...")
+        self.ai_status_label.setText("Guardando...")
 
-        stt_provider_ui = self.stt_provider_combo.currentText()
-        stt_provider = "whisper" if "Local" in stt_provider_ui else "google"
-        whisper_model = self.whisper_model_combo.currentText()
-        provider = self.ai_provider_combo.currentText()
-        api_key = self.api_key_input.text()
-        model_id = self.model_id_input.text().strip()
+        def do_save():
+            path = self._get_config_path()
+            folder = os.path.dirname(path)
+            os.makedirs(folder, exist_ok=True)
 
-        # Normalize: "Local (llama.cpp)" in UI -> "Local" in config
-        if provider == "Local (llama.cpp)":
-            provider = "Local"
-        if provider == "Google" and not model_id:
-            model_id = "gemini-3.1-flash-lite"
-        if provider == "Groq" and not model_id:
-            model_id = "openai/gpt-oss-120b"
+            stt_provider_ui = self.stt_provider_combo.currentText()
+            stt_provider = "whisper" if "Local" in stt_provider_ui else "google"
+            whisper_model = self.whisper_model_combo.currentText()
+            provider = self.ai_provider_combo.currentText()
+            api_key = self.api_key_input.text()
+            model_id = self.model_id_input.text().strip()
 
-        ai_settings = {
-            "stt_provider": stt_provider,
-            "whisper_model": whisper_model,
-            "provider": provider,
-            "api_key": api_key,
-            "model_id": model_id,
-        }
+            if provider == "Local (llama.cpp)":
+                provider = "Local"
+            if provider == "Google" and not model_id:
+                model_id = "gemini-3.1-flash-lite"
+            if provider == "Groq" and not model_id:
+                model_id = "openai/gpt-oss-120b"
 
-        try:
-            with open(path, "w", encoding="utf-8") as handle:
-                json.dump(ai_settings, handle, indent=2)
-            self.ai_status_label.setText("Guardado!")
-            get_llm_client().reload()
-            window = self.window()
-            if hasattr(window, "assistant"):
-                window.assistant.set_stt_settings(stt_provider, whisper_model)
-        except OSError:
-            self.ai_status_label.setText("Error!")
+            ai_settings = {
+                "stt_provider": stt_provider,
+                "whisper_model": whisper_model,
+                "provider": provider,
+                "api_key": api_key,
+                "model_id": model_id,
+            }
+
+            try:
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(ai_settings, handle, indent=2)
+                self.ai_status_label.setText("Guardado!")
+                get_llm_client().reload()
+                window = self.window()
+                if hasattr(window, "assistant"):
+                    window.assistant.set_stt_settings(stt_provider, whisper_model)
+            except OSError:
+                self.ai_status_label.setText("Error!")
+            finally:
+                self.save_spinner.stop()
+                self.save_ai_button.setEnabled(True)
+                self.save_ai_button.setText("Guardar")
+
+        QTimer.singleShot(150, do_save)
 
     def _browse_model(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -331,6 +348,7 @@ class AIConfigPanel(QFrame):
     def _download_model(self):
         self.download_model_btn.setEnabled(False)
         self.download_model_btn.setText("Descargando...")
+        self.download_spinner.start()
         self.ai_status_label.setText("Descargando modelo (769 MB)...")
         QApplication.processEvents()
 
@@ -356,3 +374,4 @@ class AIConfigPanel(QFrame):
         finally:
             self.download_model_btn.setEnabled(True)
             self.download_model_btn.setText("Descargar modelo")
+            self.download_spinner.stop()
