@@ -7,6 +7,7 @@ import sys
 import requests
 from pathlib import Path
 from typing import Optional
+from collections import OrderedDict
 
 from openai import OpenAI
 
@@ -23,6 +24,8 @@ class LlmClient:
         self._inference_process = None
         self._inference_port = None
         self._local_error: Optional[str] = None
+        self._cache: OrderedDict = OrderedDict()
+        self._cache_maxsize = 200
         self.reload()
 
     def _get_config_path(self) -> Path:
@@ -154,6 +157,31 @@ class LlmClient:
     def has_context(self) -> bool:
         return bool(self._context_text)
 
+    def _get_system_prompt(self) -> str:
+        return (
+            "Eres un asistente virtual util, amigable y que responde en espanol de forma concisa."
+            if not self._context_text
+            else "Eres un asistente virtual que responde preguntas en espanol de forma concisa. Usa el contexto proporcionado como guia para mantener las respuestas relacionadas al tema, pero puedes usar tu propio conocimiento para responder."
+        )
+
+    def _build_cache_key(self, system_prompt: str, actual_prompt: str) -> tuple:
+        return (self.provider, self.model_id, system_prompt, actual_prompt)
+
+    def _cache_get(self, key: tuple) -> Optional[str]:
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        return None
+
+    def _cache_set(self, key: tuple, value: str):
+        self._cache[key] = value
+        self._cache.move_to_end(key)
+        while len(self._cache) > self._cache_maxsize:
+            self._cache.popitem(last=False)
+
+    def clear_cache(self):
+        self._cache.clear()
+
     def _build_prompt(self, prompt: str) -> str:
         if self._context_text:
             return (
@@ -163,12 +191,13 @@ class LlmClient:
         return prompt
 
     def ask(self, prompt: str) -> str:
-        system_prompt = (
-            "Eres un asistente virtual util, amigable y que responde en espanol de forma concisa."
-            if not self._context_text
-            else "Eres un asistente virtual que responde preguntas en espanol de forma concisa. Usa el contexto proporcionado como guia para mantener las respuestas relacionadas al tema, pero puedes usar tu propio conocimiento para responder."
-        )
+        system_prompt = self._get_system_prompt()
         actual_prompt = self._build_prompt(prompt)
+        cache_key = self._build_cache_key(system_prompt, actual_prompt)
+
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            return cached
 
         if self.provider == "Local":
             if not self._inference_port:
@@ -180,7 +209,9 @@ class LlmClient:
                     timeout=120
                 )
                 if resp.status_code == 200:
-                    return resp.json().get("response", "")
+                    result = resp.json().get("response", "")
+                    self._cache_set(cache_key, result)
+                    return result
                 return "Error en servidor local"
             except Exception as e:
                 return f"Error: {e}"
@@ -198,16 +229,101 @@ class LlmClient:
                     ],
                     temperature=0.7,
                 )
-                return respuesta.choices[0].message.content
+                result = respuesta.choices[0].message.content
+                self._cache_set(cache_key, result)
+                return result
             elif self.provider == "Google":
                 response = self.client.models.generate_content(
                     model=self.model_id,
                     contents=f"{system_prompt}\n\nUsuario: {actual_prompt}",
                 )
-                return getattr(response, "text", "")
+                result = getattr(response, "text", "")
+                self._cache_set(cache_key, result)
+                return result
             return "Proveedor no soportado."
         except Exception as e:
             return f"Error conectando con el proveedor de IA: {e}"
+
+    def ask_stream(self, prompt: str):
+        system_prompt = self._get_system_prompt()
+        actual_prompt = self._build_prompt(prompt)
+        cache_key = self._build_cache_key(system_prompt, actual_prompt)
+
+        cached = self._cache_get(cache_key)
+        if cached is not None:
+            yield cached
+            return
+
+        if self.provider == "Local":
+            if not self._inference_port:
+                yield f"Error Local: {self._local_error or 'No inicializado'}"
+                return
+            try:
+                resp = requests.post(
+                    f"http://127.0.0.1:{self._inference_port}/ask_stream",
+                    json={"prompt": actual_prompt, "system_prompt": system_prompt},
+                    stream=True,
+                    timeout=120
+                )
+                full_response = []
+                for line in resp.iter_lines():
+                    if line:
+                        line = line.decode('utf-8')
+                        if line.startswith('data: '):
+                            data = json.loads(line[6:])
+                            if 'error' in data:
+                                yield data['error']
+                                return
+                            token = data.get('token', '')
+                            if token:
+                                full_response.append(token)
+                                yield token
+                if full_response:
+                    self._cache_set(cache_key, ''.join(full_response))
+            except Exception as e:
+                yield f"Error: {e}"
+            return
+
+        if not self.client or not self.model_id:
+            yield "Error: El cliente de IA no esta configurado."
+            return
+
+        try:
+            if self.provider in ("LM Studio", "Groq"):
+                stream = self.client.chat.completions.create(
+                    model=self.model_id,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": actual_prompt},
+                    ],
+                    temperature=0.7,
+                    stream=True,
+                )
+                full_response = []
+                for chunk in stream:
+                    content = chunk.choices[0].delta.content or ""
+                    if content:
+                        full_response.append(content)
+                        yield content
+                if full_response:
+                    self._cache_set(cache_key, ''.join(full_response))
+            elif self.provider == "Google":
+                stream = self.client.models.generate_content_stream(
+                    model=self.model_id,
+                    contents=f"{system_prompt}\n\nUsuario: {actual_prompt}",
+                )
+                full_response = []
+                for chunk in stream:
+                    text = getattr(chunk, "text", "")
+                    if text:
+                        full_response.append(text)
+                        yield text
+                if full_response:
+                    self._cache_set(cache_key, ''.join(full_response))
+            else:
+                yield "Streaming no soportado para este proveedor."
+        except Exception as e:
+            yield f"Error conectando con el proveedor de IA: {e}"
 
     def __del__(self):
         self._stop_inference_server()

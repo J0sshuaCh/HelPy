@@ -1,7 +1,8 @@
 import sys
 import argparse
+import json
 import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from waitress import serve
 
 # Desactivar logs innecesarios de Flask/Waitress
@@ -33,6 +34,37 @@ def ask():
         return jsonify({"response": content})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/ask_stream', methods=['POST'])
+def ask_stream():
+    global llm
+    if not llm:
+        return jsonify({"error": "Modelo no cargado"}), 500
+
+    data = request.json
+    prompt = data.get("prompt", "")
+    system_prompt = data.get("system_prompt", "Eres un asistente virtual útil y amigable.")
+
+    def generate():
+        try:
+            stream = llm.create_chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.7,
+                max_tokens=512,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk["choices"][0]["delta"]
+                content = delta.get("content", "")
+                if content:
+                    yield f"data: {json.dumps({'token': content})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 @app.route('/health', methods=['GET'])
 def health():

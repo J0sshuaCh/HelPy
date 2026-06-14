@@ -17,6 +17,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     text_received = pyqtSignal(str)
     status_changed = pyqtSignal(str)
     llm_received = pyqtSignal(str)
+    llm_chunk_received = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,11 +53,13 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.assistant.on_result(self._on_transcription_result)
         self.assistant.on_status(self._on_status_change)
         self.assistant.on_llm_result(self._on_llm_result)
+        self.assistant.on_llm_chunk(self._on_llm_chunk)
 
         # Signals
         self.text_received.connect(self._set_transcription_safe)
         self.status_changed.connect(self._set_status_safe)
         self.llm_received.connect(self._set_llm_safe)
+        self.llm_chunk_received.connect(self._set_llm_chunk_safe)
 
         self._init_ui()
         
@@ -311,6 +314,9 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     def _on_llm_result(self, text: str):
         self.llm_received.emit(text)
 
+    def _on_llm_chunk(self, chunk: str):
+        self.llm_chunk_received.emit(chunk)
+
     def _on_status_change(self, msg: str):
         self.status_changed.emit(msg)
 
@@ -323,6 +329,16 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.status_label.setText(f"Estado: {msg}")
         if msg.startswith("No se pudo") or msg.startswith("Error"):
             self._set_warning(msg)
+
+    def _set_llm_chunk_safe(self, chunk: str):
+        if not chunk:
+            self.text_display.llm_text.clear()
+            return
+        cursor = self.text_display.llm_text.textCursor()
+        cursor.movePosition(cursor.End)
+        cursor.insertText(chunk)
+        scrollbar = self.text_display.llm_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def _set_llm_safe(self, text: str):
         self.text_display.llm_text.setPlainText(text)

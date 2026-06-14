@@ -34,6 +34,7 @@ class AssistantController:
         self._on_result_callback: Optional[Callable[[str], None]] = None
         self._on_status_callback: Optional[Callable[[str], None]] = None
         self._on_llm_callback: Optional[Callable[[str], None]] = None
+        self._on_llm_chunk_callback: Optional[Callable[[str], None]] = None
         try:
             self.llm = get_llm_client()
         except Exception as exc:
@@ -48,6 +49,9 @@ class AssistantController:
 
     def on_llm_result(self, callback: Callable[[str], None]):
         self._on_llm_callback = callback
+
+    def on_llm_chunk(self, callback: Callable[[str], None]):
+        self._on_llm_chunk_callback = callback
 
     def _emit_status(self, msg: str):
         if self._on_status_callback:
@@ -85,16 +89,34 @@ class AssistantController:
         if not text:
             self._emit_status("Buffer vacio")
             return
-            
+
+        if self._on_llm_chunk_callback:
+            self._on_llm_chunk_callback("")  # signal to clear text
+
         def _process_llm():
             try:
-                respuesta = self.llm.ask(text)
+                if hasattr(self.llm, 'ask_stream'):
+                    full_response = []
+                    for chunk in self.llm.ask_stream(text):
+                        if chunk:
+                            full_response.append(chunk)
+                            if self._on_llm_chunk_callback:
+                                self._on_llm_chunk_callback(chunk)
+                    respuesta = ''.join(full_response)
+                else:
+                    respuesta = self.llm.ask(text)
+                    if respuesta and self._on_llm_chunk_callback:
+                        self._on_llm_chunk_callback(respuesta)
+
                 if self._on_llm_callback:
                     self._on_llm_callback(respuesta)
                 self._emit_status("IA respondio correctamente")
             except Exception as e:
+                error_msg = f"Error LLM: {e}"
+                if self._on_llm_chunk_callback:
+                    self._on_llm_chunk_callback(error_msg)
                 if self._on_llm_callback:
-                    self._on_llm_callback(f"Error LLM: {e}")
+                    self._on_llm_callback(error_msg)
                 self._emit_status("Error de IA")
 
         import threading
