@@ -19,6 +19,7 @@ class LlmClient:
         self.provider: Optional[str] = None
         self.client = None
         self.model_id: Optional[str] = None
+        self._context_text: str = ""
         self._inference_process = None
         self._inference_port = None
         self._local_error: Optional[str] = None
@@ -60,9 +61,9 @@ class LlmClient:
             return
 
         self.provider = config.get("provider", "LM Studio")
-        api_key = config.get("api_key")
-        model_id = config.get("model_id")
-        self.model_id = model_id
+        api_key = config.get("api_key", "").strip()
+        model_id = config.get("model_id", "").strip()
+        self.model_id = model_id or None
 
         if self.provider == "LM Studio":
             base_url = config.get("base_url", "http://localhost:1234/v1")
@@ -70,8 +71,11 @@ class LlmClient:
         elif self.provider == "Google":
             try:
                 from google import genai
-                self.client = genai.Client(api_key=api_key)
-            except ImportError:
+                if not api_key:
+                    self.client = None
+                else:
+                    self.client = genai.Client(api_key=api_key)
+            except (ImportError, ValueError):
                 self.client = None
         elif self.provider == "Groq":
             try:
@@ -141,8 +145,30 @@ class LlmClient:
         except Exception as e:
             self._local_error = f"Error al lanzar el subproceso: {e}"
 
+    def set_context(self, text: str):
+        self._context_text = text
+
+    def clear_context(self):
+        self._context_text = ""
+
+    def has_context(self) -> bool:
+        return bool(self._context_text)
+
+    def _build_prompt(self, prompt: str) -> str:
+        if self._context_text:
+            return (
+                f"Contexto de referencia:\n{self._context_text}\n\n"
+                f"Pregunta:\n{prompt}"
+            )
+        return prompt
+
     def ask(self, prompt: str) -> str:
-        system_prompt = "Eres un asistente virtual util, amigable y que responde en espanol de forma concisa."
+        system_prompt = (
+            "Eres un asistente virtual util, amigable y que responde en espanol de forma concisa."
+            if not self._context_text
+            else "Eres un asistente virtual que responde preguntas en espanol de forma concisa. Usa el contexto proporcionado como guia para mantener las respuestas relacionadas al tema, pero puedes usar tu propio conocimiento para responder."
+        )
+        actual_prompt = self._build_prompt(prompt)
 
         if self.provider == "Local":
             if not self._inference_port:
@@ -150,7 +176,7 @@ class LlmClient:
             try:
                 resp = requests.post(
                     f"http://127.0.0.1:{self._inference_port}/ask",
-                    json={"prompt": prompt, "system_prompt": system_prompt},
+                    json={"prompt": actual_prompt, "system_prompt": system_prompt},
                     timeout=120
                 )
                 if resp.status_code == 200:
@@ -168,7 +194,7 @@ class LlmClient:
                     model=self.model_id,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
+                        {"role": "user", "content": actual_prompt},
                     ],
                     temperature=0.7,
                 )
@@ -176,7 +202,7 @@ class LlmClient:
             elif self.provider == "Google":
                 response = self.client.models.generate_content(
                     model=self.model_id,
-                    contents=f"{system_prompt}\n\nUsuario: {prompt}",
+                    contents=f"{system_prompt}\n\nUsuario: {actual_prompt}",
                 )
                 return getattr(response, "text", "")
             return "Proveedor no soportado."
@@ -189,5 +215,15 @@ class LlmClient:
 def get_llm_client():
     global _instance
     if _instance is None:
-        _instance = LlmClient()
+        try:
+            _instance = LlmClient()
+        except Exception:
+            _instance = LlmClient.__new__(LlmClient)
+            _instance.provider = None
+            _instance.client = None
+            _instance.model_id = None
+            _instance._context_text = ""
+            _instance._inference_process = None
+            _instance._inference_port = None
+            _instance._local_error = "Error de inicialización"
     return _instance

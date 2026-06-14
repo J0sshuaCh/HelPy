@@ -6,7 +6,7 @@ from app.core.assistant_controller import AssistantController
 from app.ui.shared import ui_settings, DragMixin, apply_capture_affinity, update_window_position, apply_window_size, get_icon
 from app.ui.shared.animations import AnimatedCollapseMixin
 
-from .ui import HeaderArea, PositionBar, DevicePanel, CapturePanel, RecordingPanel, TextDisplayPanel
+from .ui import HeaderArea, PositionBar, DevicePanel, CapturePanel, RecordingPanel, TextDisplayPanel, ContextPanel
 from .device_manager import DeviceManager
 from .theme_manager import ThemeManager
 from .ai_config import AIConfigPanel
@@ -125,6 +125,9 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.recording_panel.send_button.clicked.connect(self.assistant.send_buffer_to_llm)
         self.recording_panel.refresh_button.clicked.connect(lambda: self.device_manager.refresh())
         self.container_layout.addWidget(self.recording_panel)
+        
+        self.context_panel = ContextPanel(ui_settings, self)
+        self.container_layout.addWidget(self.context_panel)
         
         self.status_label = QLabel("Estado: listo", self)
         self.status_label.setObjectName("statusLabel")

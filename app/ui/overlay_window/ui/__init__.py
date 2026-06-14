@@ -4,6 +4,7 @@ from .device_panel import DevicePanel
 from .capture_panel import CapturePanel
 from .recording_panel import RecordingPanel
 from .text_display import TextDisplayPanel
+from .context_panel import ContextPanel
 
 __all__ = [
     "HeaderArea",
@@ -12,4 +13,5 @@ __all__ = [
     "CapturePanel",
     "RecordingPanel",
     "TextDisplayPanel",
+    "ContextPanel",
 ]
