@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.2] - 2026-06-14
+
+### Added
+- Carga de contexto documental para el LLM: panel colapsable para cargar archivos `.md`, `.txt` y `.pdf` como contexto de referencia.
+- `text_extractor.py`: utilidad para extraer texto de documentos (soporta Markdown, TXT y PDF).
+- `LlmClient` ahora inyecta el contexto en cada consulta y usa un system prompt adaptado cuando hay contexto cargado.
+
+### Fixed
+- API key sanitizada con `.strip()` al cargar configuración para evitar errores de cabecera HTTP inválida.
+- `get_llm_client()` tolera fallos de inicialización (ej. API key faltante) sin dejar la instancia en `None`.
+
 ## [0.5.1] - 2026-06-13
 
 ### Fixed
