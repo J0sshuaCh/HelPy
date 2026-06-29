@@ -13,6 +13,7 @@ from app.utils.path_utils import writable_config_path
 from app.ui.themes import filtrar_temas_por_modo
 from app.ui.shared import get_icon
 from app.ui.shared.spinner import LoadingSpinner
+from app.ui.overlay_window.hotkeys import HOTKEY_DESCRIPTIONS, DEFAULT_HOTKEYS
 
 class AIConfigPanel(QFrame):
     def __init__(self, settings, theme_manager, parent=None):
@@ -32,10 +33,12 @@ class AIConfigPanel(QFrame):
         header_row.setContentsMargins(0, 0, 0, 0)
         self.llm_toggle_button = QPushButton("Configurar LLM:", self)
         self.llm_toggle_button.setObjectName("sectionToggle")
+        self.llm_toggle_button.setToolTip("Mostrar/ocultar configuración del modelo de IA")
         self.llm_toggle_button.clicked.connect(self.toggle_llm_config)
         
         self.selector_temas = QComboBox(self)
         self.selector_temas.setObjectName("deviceCombo")
+        self.selector_temas.setToolTip("Seleccionar tema visual de la interfaz")
         self.selector_temas.currentIndexChanged.connect(self._on_tema_selected)
         
         self.toggle_modo_btn = QPushButton(self)
@@ -65,10 +68,12 @@ class AIConfigPanel(QFrame):
         # --- STT Config ---
         self.stt_provider_combo = QComboBox(self)
         self.stt_provider_combo.addItems(["Google (Nube)", "Local (faster-whisper)"])
+        self.stt_provider_combo.setToolTip("Proveedor de transcripción de voz a texto")
         form_layout.addRow("STT Provider:", self.stt_provider_combo)
 
         self.whisper_model_combo = QComboBox(self)
         self.whisper_model_combo.addItems(["tiny", "base", "small"])
+        self.whisper_model_combo.setToolTip("Modelo Whisper: tiny (rápido) → small (más preciso)")
         form_layout.addRow("Whisper Model:", self.whisper_model_combo)
         
         # Separator
@@ -81,14 +86,17 @@ class AIConfigPanel(QFrame):
         self.ai_provider_combo = QComboBox(self)
         self.ai_provider_combo.setObjectName("deviceCombo")
         self.ai_provider_combo.addItems(["LM Studio", "Google", "Groq", "Local (llama.cpp)"])
+        self.ai_provider_combo.setToolTip("Proveedor del modelo de IA")
         form_layout.addRow("Proveedor:", self.ai_provider_combo)
 
         self.api_key_input = QLineEdit(self)
         self.api_key_input.setEchoMode(QLineEdit.Password)
+        self.api_key_input.setToolTip("Clave API del proveedor seleccionado (no necesaria para LM Studio/Local)")
         form_layout.addRow("API Key:", self.api_key_input)
 
         self.model_id_input = QLineEdit(self)
         self.model_id_input.setPlaceholderText("Opcional: openai/gpt-oss-120b")
+        self.model_id_input.setToolTip("ID del modelo o ruta al archivo .gguf para modo local")
         
         model_container = QWidget(self)
         model_row = QHBoxLayout(model_container)
@@ -96,9 +104,11 @@ class AIConfigPanel(QFrame):
         model_row.addWidget(self.model_id_input, 1)
         
         self.browse_model_btn = QPushButton("Examinar...", self)
+        self.browse_model_btn.setToolTip("Seleccionar archivo de modelo .gguf local")
         self.browse_model_btn.clicked.connect(self._browse_model)
         self.download_model_btn = QPushButton("Descargar modelo", self)
         self.download_model_btn.setObjectName("downloadModelBtn")
+        self.download_model_btn.setToolTip("Descargar modelo Gemma 3 1B (769 MB)")
         self.download_model_btn.clicked.connect(self._download_model)
         self.download_model_btn.setVisible(False)
         
@@ -113,6 +123,7 @@ class AIConfigPanel(QFrame):
         self.save_spinner = LoadingSpinner(self, size=14, line_width=2, speed=40)
         self.save_ai_button = QPushButton("Guardar", self)
         self.save_ai_button.setObjectName("saveAIButton")
+        self.save_ai_button.setToolTip("Guardar configuración de proveedor y modelo")
         self.save_ai_button.clicked.connect(self._save_ai_settings)
         self.ai_status_label = QLabel("", self)
         self.ai_status_label.setObjectName("statusLabel")
@@ -124,12 +135,53 @@ class AIConfigPanel(QFrame):
         body_layout.addLayout(button_row)
         layout.addWidget(self.ai_config_body)
         
+        # --- Hotkey Config Section ---
+        self.hotkey_config_collapsed = bool(self.settings.get("hotkey_config_collapsed", True))
+        
+        self.hotkey_toggle_button = QPushButton("Atajos de Teclado:", self)
+        self.hotkey_toggle_button.setObjectName("sectionToggle")
+        self.hotkey_toggle_button.setToolTip("Configurar atajos de teclado personalizados")
+        self.hotkey_toggle_button.clicked.connect(self.toggle_hotkey_config)
+        layout.addWidget(self.hotkey_toggle_button)
+        
+        self.hotkey_config_body = QFrame(self)
+        self.hotkey_config_body.setObjectName("aiConfigBody")
+        hotkey_body_layout = QVBoxLayout(self.hotkey_config_body)
+        hotkey_body_layout.setContentsMargins(0, 0, 0, 0)
+        
+        hotkey_form = QFormLayout()
+        hotkey_form.setSpacing(8)
+        hotkey_form.setContentsMargins(12, 8, 12, 12)
+        
+        self.hotkey_inputs = {}
+        for action, description in HOTKEY_DESCRIPTIONS.items():
+            input_field = QLineEdit(self)
+            input_field.setPlaceholderText(DEFAULT_HOTKEYS.get(action, ""))
+            input_field.setToolTip(f"Formato: <modificador>+<tecla>\nEjemplo: <alt_gr>+g, <ctrl>+space")
+            self.hotkey_inputs[action] = input_field
+            hotkey_form.addRow(f"{description}:", input_field)
+        
+        hotkey_button_row = QHBoxLayout()
+        self.reset_hotkeys_btn = QPushButton("Restaurar por defecto", self)
+        self.reset_hotkeys_btn.setToolTip("Restaurar los atajos de teclado originales")
+        self.reset_hotkeys_btn.clicked.connect(self._reset_hotkeys)
+        self.hotkey_status_label = QLabel("", self)
+        self.hotkey_status_label.setObjectName("statusLabel")
+        hotkey_button_row.addWidget(self.hotkey_status_label, 1)
+        hotkey_button_row.addWidget(self.reset_hotkeys_btn)
+        
+        hotkey_body_layout.addLayout(hotkey_form)
+        hotkey_body_layout.addLayout(hotkey_button_row)
+        layout.addWidget(self.hotkey_config_body)
+        
         # Connectors
         self.stt_provider_combo.currentIndexChanged.connect(self._on_stt_provider_changed)
         self.ai_provider_combo.currentIndexChanged.connect(self._on_ai_provider_changed)
         
         self._load_ai_settings()
+        self._load_hotkey_settings()
         self._apply_llm_config_visibility()
+        self._apply_hotkey_config_visibility()
         self._aplicar_tema_inicial()
 
     def reload_icons(self):
@@ -149,6 +201,39 @@ class AIConfigPanel(QFrame):
         window = self.window()
         if window and hasattr(window, "adjustSize"):
             window.adjustSize()
+
+    def toggle_hotkey_config(self):
+        self.hotkey_config_collapsed = not self.hotkey_config_collapsed
+        self.settings.set("hotkey_config_collapsed", self.hotkey_config_collapsed)
+        self._apply_hotkey_config_visibility()
+
+    def _apply_hotkey_config_visibility(self):
+        self.hotkey_config_body.setVisible(not self.hotkey_config_collapsed)
+        self.hotkey_toggle_button.setIcon(get_icon("expand") if self.hotkey_config_collapsed else get_icon("collapse"))
+        if self.parentWidget() and hasattr(self.parentWidget(), "adjustSize"):
+            self.parentWidget().adjustSize()
+        window = self.window()
+        if window and hasattr(window, "adjustSize"):
+            window.adjustSize()
+
+    def _load_hotkey_settings(self):
+        """Carga las hotkeys configuradas en los campos de entrada."""
+        hotkeys = self.settings.get("hotkeys", {})
+        for action, input_field in self.hotkey_inputs.items():
+            current = hotkeys.get(action, DEFAULT_HOTKEYS.get(action, ""))
+            input_field.setText(current)
+
+    def _reset_hotkeys(self):
+        """Restaura hotkeys por defecto."""
+        for action, input_field in self.hotkey_inputs.items():
+            input_field.setText(DEFAULT_HOTKEYS.get(action, ""))
+        
+        window = self.window()
+        if window and hasattr(window, "hotkey_manager"):
+            window.hotkey_manager.reset_hotkeys()
+        
+        self.hotkey_status_label.setText("Hotkeys restauradas!")
+        QTimer.singleShot(2000, lambda: self.hotkey_status_label.setText(""))
 
     def toggle_modo_tema(self):
         orden = ["oscuro", "claro", "clasico"]
@@ -336,7 +421,29 @@ class AIConfigPanel(QFrame):
                 self.save_ai_button.setEnabled(True)
                 self.save_ai_button.setText("Guardar")
 
+        # Guardar hotkeys también
+        self._save_hotkey_settings()
+        
         QTimer.singleShot(150, do_save)
+
+    def _save_hotkey_settings(self):
+        """Guarda las hotkeys configuradas."""
+        hotkeys = {}
+        for action, input_field in self.hotkey_inputs.items():
+            value = input_field.text().strip()
+            if value:
+                hotkeys[action] = value
+        
+        self.settings.set("hotkeys", hotkeys)
+        
+        # Actualizar hotkey manager si existe
+        window = self.window()
+        if window and hasattr(window, "hotkey_manager"):
+            for action, value in hotkeys.items():
+                window.hotkey_manager.update_hotkey(action, value)
+        
+        self.hotkey_status_label.setText("Hotkeys guardadas!")
+        QTimer.singleShot(2000, lambda: self.hotkey_status_label.setText(""))
 
     def _browse_model(self):
         path, _ = QFileDialog.getOpenFileName(
