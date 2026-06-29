@@ -15,6 +15,7 @@ from app.ui.themes import obtener_qss
 from .ui import HeaderBar, Toolbar, TextViewer, PdfViewer
 from .file_loader import FileLoader
 from .zoom import ZoomManager
+from .search_bar import SearchBar
 
 class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     def __init__(self, parent=None):
@@ -65,6 +66,10 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         container_layout.addLayout(title_row)
 
         Toolbar.setup(container_layout, self, self._opacity)
+        
+        # Barra de búsqueda
+        self.search_bar = SearchBar(self)
+        container_layout.addWidget(self.search_bar)
 
         self.path_label = QLabel("Arrastra un archivo aqui o usa Abrir", self)
         self.path_label.setObjectName("statusLabel")
@@ -207,10 +212,17 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.close()
+            if self.search_bar.isVisible():
+                self.search_bar.hide_bar()
+            else:
+                self.close()
             return
         if event.key() == Qt.Key_O and event.modifiers() & Qt.ControlModifier:
             self.open_script_file()
+            return
+        if event.key() == Qt.Key_F and event.modifiers() & Qt.ControlModifier:
+            self.search_bar.set_target(self.md_view)
+            self.search_bar.toggle()
             return
         super().keyPressEvent(event)
 

@@ -30,6 +30,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.capture_visible = ui_settings.get("capture_visible", False)
         self.opacity = ui_settings.get("overlay_opacity", 100)
         self.capture_mode = ui_settings.get("capture_mode", "both")
+        self.compact_mode = ui_settings.get("compact_mode", False)
         
         import json
         from app.utils.path_utils import writable_config_path
@@ -55,6 +56,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.assistant.on_status(self._on_status_change)
         self.assistant.on_llm_result(self._on_llm_result)
         self.assistant.on_llm_chunk(self._on_llm_chunk)
+        self.assistant.on_audio_level(self._on_audio_level)
 
         # Signals
         self.text_received.connect(self._set_transcription_safe)
@@ -79,6 +81,12 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         
         self._apply_settings()
         
+        # Validación de configuración al inicio
+        self._run_startup_validation()
+        
+        # Mostrar onboarding en primer lanzamiento
+        self._show_onboarding_if_needed()
+        
         # Initial refresh
         self.device_manager.refresh()
         apply_window_size(self)
@@ -100,6 +108,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.header_area = HeaderArea(initial_opacity=self.opacity, parent=self)
         self.header_area.opacity_slider.valueChanged.connect(self._apply_global_opacity)
         self.header_area.capture_button.clicked.connect(self.toggle_capture_visibility)
+        self.header_area.compact_button.clicked.connect(self.toggle_compact_mode)
         self.header_area.edge_button.clicked.connect(self.toggle_collapsed)
         self.main_layout.addWidget(self.header_area)
 
@@ -177,6 +186,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
             
         self._update_capture_button()
         self._apply_capture_affinity()
+        self._apply_compact_mode()
         
         self.assistant.set_capture_mode(self.capture_mode)
         self._set_capture_mode_ui(self.capture_mode)
@@ -234,6 +244,34 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self._apply_capture_affinity()
         self._update_capture_button()
 
+    def toggle_compact_mode(self):
+        """Alterna entre modo expandido (todo visible) y compacto (solo respuesta LLM)."""
+        self.compact_mode = not self.compact_mode
+        ui_settings.set("compact_mode", self.compact_mode)
+        self._apply_compact_mode()
+
+    def _apply_compact_mode(self):
+        """Aplica el modo compacto/expandido."""
+        is_compact = self.compact_mode
+        
+        # Mostrar/ocultar paneles según el modo
+        self.device_panel.setVisible(not is_compact)
+        self.capture_panel.setVisible(not is_compact)
+        self.recording_panel.setVisible(not is_compact)
+        self.context_panel.setVisible(not is_compact)
+        self.position_bar.setVisible(not is_compact)
+        self.text_display.transcription_label.setVisible(not is_compact)
+        self.text_display.transcription_text.setVisible(not is_compact)
+        
+        # Actualizar icono del botón
+        icon_name = "collapse" if is_compact else "expand"
+        self.header_area.compact_button.setIcon(get_icon(icon_name))
+        self.header_area.compact_button.setToolTip(
+            "Modo expandido (mostrar todo)" if is_compact else "Modo compacto (solo respuesta)"
+        )
+        
+        self.adjustSize()
+
     def toggle_mic_mode(self):
         if self.assistant.transcriber.mic_mode == "auto":
             self.assistant.set_mic_settings(mic_mode="manual", mic_energy_threshold=120, mic_dynamic=False, mic_adjust_duration=0.0)
@@ -252,6 +290,45 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         QApplication.quit()
 
     # --- UI Helpers ---
+    def _run_startup_validation(self):
+        """Ejecuta validación de configuración al inicio y muestra advertencias."""
+        try:
+            from app.core.startup_validator import validate_startup, get_validation_summary
+            issues = validate_startup()
+            if issues:
+                errors = [msg for tipo, msg in issues if tipo == "error"]
+                warnings = [msg for tipo, msg in issues if tipo == "warning"]
+                
+                # Mostrar errores en el status
+                if errors:
+                    self._set_warning(f"Configuración: {errors[0]}")
+                
+                # Imprimir resumen completo en consola
+                summary = get_validation_summary(issues)
+                print(f"\n{'='*50}")
+                print("VALIDACIÓN DE INICIO:")
+                print(summary)
+                print(f"{'='*50}\n")
+        except Exception as e:
+            print(f"Error en validación de inicio: {e}")
+    
+    def _show_onboarding_if_needed(self):
+        """Muestra el diálogo de onboarding en el primer lanzamiento."""
+        if not ui_settings.get("onboarding_completed", False):
+            try:
+                from app.ui.onboarding_dialog import OnboardingDialog
+                from PyQt5.QtCore import QTimer
+                # Mostrar después de que la ventana esté visible
+                QTimer.singleShot(500, self._show_onboarding)
+            except Exception as e:
+                print(f"Error al mostrar onboarding: {e}")
+    
+    def _show_onboarding(self):
+        from app.ui.onboarding_dialog import OnboardingDialog
+        dialog = OnboardingDialog(self)
+        dialog.exec_()
+        ui_settings.set("onboarding_completed", True)
+    
     def _apply_global_opacity(self, value):
         self.opacity = value
         ui_settings.set("overlay_opacity", value)
@@ -331,6 +408,9 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     def _on_status_change(self, msg: str):
         self.status_changed.emit(msg)
 
+    def _on_audio_level(self, level: float):
+        self.recording_panel.vu_meter.set_level(level)
+
     def _set_transcription_safe(self, text: str):
         self.text_display.transcription_text.setPlainText(text)
         scrollbar = self.text_display.transcription_text.verticalScrollBar()
@@ -363,13 +443,11 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         cursor = self.text_display.llm_text.textCursor()
         cursor.movePosition(cursor.End)
         cursor.insertText(chunk)
-        scrollbar = self.text_display.llm_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.text_display._smart_scroll_to_bottom()
 
     def _set_llm_safe(self, text: str):
         self.text_display.llm_text.setPlainText(text)
-        scrollbar = self.text_display.llm_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        self.text_display._smart_scroll_to_bottom()
         self._update_llm_height()
 
     # --- Events ---
