@@ -39,7 +39,7 @@ class TextDisplayPanel(QFrame):
         
         self.export_button = QPushButton("", self)
         self.export_button.setObjectName("edgeButton")
-        self.export_button.setIcon(get_icon("copy"))
+        self.export_button.setIcon(get_icon("download"))
         self.export_button.setIconSize(QSize(14, 14))
         self.export_button.setToolTip("Exportar conversación a archivo (.md/.txt)")
         self.export_button.clicked.connect(self._export_conversation)
