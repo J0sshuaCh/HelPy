@@ -30,11 +30,13 @@ class AssistantController:
             mic_dynamic=mic_dynamic,
             mic_adjust_duration=mic_adjust_duration,
             on_text=self._handle_text,
+            on_audio_level=self._handle_audio_level,
         )
         self._on_result_callback: Optional[Callable[[str], None]] = None
         self._on_status_callback: Optional[Callable[[str], None]] = None
         self._on_llm_callback: Optional[Callable[[str], None]] = None
         self._on_llm_chunk_callback: Optional[Callable[[str], None]] = None
+        self._on_audio_level_callback: Optional[Callable[[float], None]] = None
         try:
             self.llm = get_llm_client()
         except Exception as exc:
@@ -52,6 +54,13 @@ class AssistantController:
 
     def on_llm_chunk(self, callback: Callable[[str], None]):
         self._on_llm_chunk_callback = callback
+
+    def on_audio_level(self, callback: Callable[[float], None]):
+        self._on_audio_level_callback = callback
+
+    def _handle_audio_level(self, level: float):
+        if self._on_audio_level_callback:
+            self._on_audio_level_callback(level)
 
     def _emit_status(self, msg: str):
         if self._on_status_callback:

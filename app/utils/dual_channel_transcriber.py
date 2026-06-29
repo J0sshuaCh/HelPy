@@ -26,6 +26,7 @@ class DualChannelTranscriber:
         phrase_time_limit: int = 8,
         system_chunk_seconds: int = 6,
         on_text: Optional[Callable[[str, str], None]] = None,
+        on_audio_level: Optional[Callable[[float], None]] = None,
     ):
         self.language = language
         self.stt_provider = stt_provider
@@ -42,6 +43,7 @@ class DualChannelTranscriber:
         self.phrase_time_limit = phrase_time_limit
         self.system_chunk_seconds = system_chunk_seconds
         self.on_text = on_text
+        self.on_audio_level = on_audio_level
 
         self._buffer = []
         self._lock = threading.Lock()
@@ -195,6 +197,11 @@ class DualChannelTranscriber:
                 if audio.ndim > 1: audio = np.mean(audio, axis=1)
                 audio_int16 = audio.astype(np.int16)
                 self._mic_queue.put(audio_int16.tobytes())
+                # Emitir nivel de audio para VU meter
+                if self.on_audio_level:
+                    rms = np.sqrt(np.mean(audio.astype(np.float64) ** 2))
+                    level = min(1.0, rms / 0.5)
+                    self.on_audio_level(level)
 
             def _worker():
                 speech_buffer = bytearray()
@@ -262,6 +269,10 @@ class DualChannelTranscriber:
             audio = audio.astype(np.int16)
             rms = np.sqrt(np.mean(audio.astype(np.float64) ** 2))
             self._mic_queue.put((audio.tobytes(), rms))
+            # Emitir nivel de audio para VU meter
+            if self.on_audio_level:
+                level = min(1.0, rms / 5000.0)
+                self.on_audio_level(level)
 
         def _worker():
             nonlocal threshold
