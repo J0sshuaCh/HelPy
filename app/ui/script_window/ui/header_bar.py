@@ -15,12 +15,14 @@ class HeaderBar:
         window.capture_button.setObjectName("edgeButton")
         window.capture_button.setIconSize(QSize(14, 14))
         window.capture_button.setText("")
+        window.capture_button.setToolTip("Mostrar/ocultar ventana en capturas de pantalla")
         window.capture_button.clicked.connect(window.toggle_capture_visibility)
 
         window.edge_button = QPushButton(window)
         window.edge_button.setObjectName("edgeButton")
         window.edge_button.setIconSize(QSize(14, 14))
         window.edge_button.setText("")
+        window.edge_button.setToolTip("Colapsar/expandir panel de guiones")
         window.edge_button.clicked.connect(window.toggle_collapsed)
 
         header_row.addWidget(window.capture_button, 0)

@@ -10,9 +10,11 @@ class DevicePanel(QWidget):
         
         self.mic_combo = QComboBox(self)
         self.mic_combo.setObjectName("deviceCombo")
+        self.mic_combo.setToolTip("Seleccionar dispositivo de micrófono de entrada")
         
         self.sys_combo = QComboBox(self)
         self.sys_combo.setObjectName("deviceCombo")
+        self.sys_combo.setToolTip("Seleccionar salida de audio del sistema (loopback)")
         
         self.layout.addWidget(self.mic_combo, 1)
         self.layout.addWidget(self.sys_combo, 1)
