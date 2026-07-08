@@ -164,17 +164,31 @@ class OnboardingDialog(QDialog):
         desc = QLabel(
             "Un asistente de escritorio que escucha tu voz, la convierte\n"
             "en texto y la envía a inteligencia artificial para obtener\n"
-            "respuestas al instante.\n\n"
-            "<b>¿Cómo funciona?</b>\n\n"
-            "  •  Hablas o capturas audio del sistema\n"
-            "  •  Tu voz se transcribe en tiempo real\n"
-            "  •  La IA procesa el texto y genera una respuesta\n"
-            "  •  El resultado aparece en pantalla\n\n"
-            "Vamos a configurarlo en menos de un minuto.",
+            "respuestas al instante.",
             w
         )
         desc.setWordWrap(True)
         w.layout().addWidget(desc)
+
+        sub = QLabel("¿Cómo funciona?", w)
+        sub.setObjectName("sectionLabel")
+        sub.setWordWrap(True)
+        w.layout().addWidget(sub)
+
+        steps = QLabel(
+            "  🎤  Hablas o capturas audio del sistema\n"
+            "  📝  Tu voz se transcribe en tiempo real\n"
+            "  🧠  La IA procesa el texto y genera una respuesta\n"
+            "  💬  El resultado aparece en pantalla",
+            w
+        )
+        steps.setWordWrap(True)
+        w.layout().addWidget(steps)
+
+        final = QLabel("Vamos a configurarlo en menos de un minuto.", w)
+        final.setWordWrap(True)
+        w.layout().addWidget(final)
+
         w.layout().addStretch()
         return w
 
