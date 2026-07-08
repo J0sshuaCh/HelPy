@@ -166,10 +166,10 @@ class OnboardingDialog(QDialog):
             "en texto y la envía a inteligencia artificial para obtener\n"
             "respuestas al instante.\n\n"
             "<b>¿Cómo funciona?</b>\n\n"
-            "  🎤  Hablas o capturas audio del sistema\n"
-            "  📝  Tu voz se transcribe en tiempo real\n"
-            "  🧠  La IA procesa el texto y genera una respuesta\n"
-            "  💬  El resultado aparece en pantalla\n\n"
+            "  •  Hablas o capturas audio del sistema\n"
+            "  •  Tu voz se transcribe en tiempo real\n"
+            "  •  La IA procesa el texto y genera una respuesta\n"
+            "  •  El resultado aparece en pantalla\n\n"
             "Vamos a configurarlo en menos de un minuto.",
             w
         )
