@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QActionGroup
-from PyQt5.QtGui import QIcon, QPixmap, QColor
+from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QObject
 from app.ui.shared import get_icon
-from app.ui.shared.icons import get_color_logo_icon
+from app.ui.shared.icons import get_logo_pixmap
 
 class TrayManager(QObject):
     def __init__(self, parent_window, assistant, device_manager):
@@ -19,7 +19,7 @@ class TrayManager(QObject):
         self.capture_mode_both_action.setIcon(get_icon("mic_monitor"))
 
     def init_tray_icon(self):
-        icon = get_color_logo_icon(32)
+        icon = QIcon(get_logo_pixmap(32, 32))
         self.tray_icon = QSystemTrayIcon(icon, self.window)
 
         menu = QMenu()

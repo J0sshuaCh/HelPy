@@ -1,5 +1,10 @@
 import sys
 import os
+import ctypes
+
+# Asignar identidad propia en Windows para mostrar icono correcto en taskbar
+myappid = 'helpy.app.v1'
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 # Solucionar conflicto de DLL en Windows entre torch (faster-whisper) y PyQt5
 try:
