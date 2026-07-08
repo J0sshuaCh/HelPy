@@ -53,7 +53,7 @@ class OnboardingDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Bienvenido a HelPy")
-        self.setMinimumSize(540, 440)
+        self.setMinimumSize(520, 400)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setObjectName("onboardingDialog")
         self._current_step = 0
@@ -97,14 +97,14 @@ class OnboardingDialog(QDialog):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 16, 24, 14)
-        layout.setSpacing(8)
+        layout.setContentsMargins(22, 14, 22, 12)
+        layout.setSpacing(6)
 
         self.title_label = QLabel("Bienvenido a HelPy", self)
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setObjectName("appTitle")
         tf = QFont()
-        tf.setPointSize(16)
+        tf.setPointSize(15)
         tf.setBold(True)
         self.title_label.setFont(tf)
         layout.addWidget(self.title_label)
@@ -201,7 +201,7 @@ class OnboardingDialog(QDialog):
         w = self._make_step_widget("sun", "Elige tu proveedor de IA")
 
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(8)
 
         self.llm_provider_combo = QComboBox(w)
         for key, label in LLM_PROVIDERS.items():
@@ -311,7 +311,7 @@ class OnboardingDialog(QDialog):
         w = self._make_step_widget("mic", "Reconocimiento de voz")
 
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(8)
 
         self.stt_provider_combo = QComboBox(w)
         self.stt_provider_combo.addItem("Google Cloud  (preciso, con internet)", "google")
@@ -410,11 +410,11 @@ class OnboardingDialog(QDialog):
     def _make_step_widget(self, icon_name: str, title: str) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(5)
+        layout.setSpacing(4)
         layout.setContentsMargins(8, 0, 8, 0)
 
         icon_label = QLabel()
-        icon_label.setPixmap(get_icon(icon_name).pixmap(32, 32))
+        icon_label.setPixmap(get_icon(icon_name).pixmap(28, 28))
         icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon_label)
 
