@@ -41,7 +41,6 @@ class OnboardingDialog(QDialog):
         self.setWindowTitle("Bienvenido a AYUDIN")
         self.setMinimumSize(520, 460)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setObjectName("onboardingDialog")
         self._current_step = 0
         self._tema_actual = ui_settings.get("tema", TEMA_POR_DEFECTO)
@@ -147,7 +146,7 @@ class OnboardingDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _create_intro(self):
-        w = self._make_step_widget("robot", "¿Qué es AYUDIN?")
+        w = self._make_step_widget("monitor", "¿Qué es AYUDIN?")
 
         desc = QLabel(
             "AYUDIN es un asistente de escritorio que captura tu voz,\n"
