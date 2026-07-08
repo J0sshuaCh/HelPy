@@ -3,7 +3,7 @@ from .window_utils import update_window_position, move_to_top_center, apply_wind
 from .drag_mixin import DragMixin
 from .capture_affinity import apply_capture_affinity
 from .animations import AnimatedCollapseMixin
-from .icons import get_icon, get_text_icon, set_icon_color, render_svg_pixmap, get_logo_pixmap
+from .icons import get_icon, get_text_icon, set_icon_color, render_svg_pixmap, get_logo_pixmap, get_color_logo_icon
 from .spinner import LoadingSpinner, SpinnerOverlay
 
 __all__ = [

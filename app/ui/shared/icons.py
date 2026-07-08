@@ -85,3 +85,18 @@ def get_logo_pixmap(width: int, height: int) -> QPixmap:
     p.drawPixmap(0, 0, scaled)
     p.end()
     return result
+
+
+def get_color_logo_icon(size: int = 64) -> QIcon:
+    """Retorna QIcon del logo a color Helpylogo.png para taskbar/tray."""
+    path = asset_path(os.path.join("icons", "Helpylogo.png"))
+    src = QPixmap(path)
+    if src.isNull():
+        return QIcon()
+    scaled = src.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    result = QPixmap(scaled.size())
+    result.fill(Qt.transparent)
+    p = QPainter(result)
+    p.drawPixmap(0, 0, scaled)
+    p.end()
+    return QIcon(result)
