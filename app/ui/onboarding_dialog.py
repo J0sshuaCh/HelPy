@@ -54,7 +54,7 @@ class OnboardingDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Bienvenido a HelPy")
         self.setMinimumSize(520, 400)
-        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         self.setObjectName("onboardingDialog")
         self._current_step = 0
         self._tema_actual = ui_settings.get("tema", TEMA_POR_DEFECTO)
