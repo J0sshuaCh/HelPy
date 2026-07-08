@@ -12,7 +12,8 @@ from PyQt5.QtWidgets import (
     QDesktopWidget, QFrame
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QPixmap, QPainter
+from PyQt5.QtSvg import QSvgRenderer
 from app.ui.shared import get_icon, ui_settings
 from app.ui.themes import obtener_qss, PALETAS
 from app.utils.path_utils import writable_config_path
@@ -79,6 +80,19 @@ class OnboardingDialog(QDialog):
     # Tema y posición
     # ------------------------------------------------------------------
 
+    def _render_logo(self, width: int, height: int) -> QPixmap:
+        """Renderiza el logo SVG de HelPy al tamaño indicado."""
+        from app.utils.path_utils import asset_path
+        import os
+        path = asset_path(os.path.join("icons", "Helpylogo.svg"))
+        pixmap = QPixmap(width, height)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        renderer = QSvgRenderer(path)
+        renderer.render(painter)
+        painter.end()
+        return pixmap
+
     def _aplicar_tema(self):
         self.setStyleSheet(obtener_qss(self._tema_actual))
 
@@ -101,13 +115,10 @@ class OnboardingDialog(QDialog):
         layout.setContentsMargins(22, 14, 22, 12)
         layout.setSpacing(6)
 
-        self.title_label = QLabel("Bienvenido a HelPy", self)
+        self.title_label = QLabel(self)
+        logo = self._render_logo(220, 60)
+        self.title_label.setPixmap(logo)
         self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setObjectName("appTitle")
-        tf = QFont()
-        tf.setPointSize(15)
-        tf.setBold(True)
-        self.title_label.setFont(tf)
         layout.addWidget(self.title_label)
 
         self.step_indicator = QLabel("", self)
