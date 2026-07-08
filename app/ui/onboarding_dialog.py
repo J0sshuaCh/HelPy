@@ -61,6 +61,7 @@ class OnboardingDialog(QDialog):
         self.setObjectName("onboardingDialog")
         self._current_step = 0
         self._tema_actual = ui_settings.get("tema", TEMA_POR_DEFECTO)
+        self._step_icons = []
 
         self._load_existing_config()
         self._init_ui()
@@ -83,10 +84,11 @@ class OnboardingDialog(QDialog):
 
     def _aplicar_tema(self):
         self.setStyleSheet(obtener_qss(self._tema_actual))
-        # Actualizar logo según tema
         if hasattr(self, 'title_label'):
             from app.ui.shared.icons import get_logo_pixmap
             self.title_label.setPixmap(get_logo_pixmap(200, 110))
+        for label, icon_name in self._step_icons:
+            label.setPixmap(get_icon(icon_name).pixmap(28, 28))
 
     def cambiar_tema_interfaz(self, nombre_tema: str):
         self._tema_actual = nombre_tema
@@ -167,7 +169,7 @@ class OnboardingDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _create_intro(self):
-        w = self._make_step_widget("monitor", "¿Qué es HelPy?")
+        w = self._make_step_widget("info", "¿Qué es HelPy?")
 
         desc = QLabel(
             "Un asistente de escritorio que escucha tu voz, la convierte\n"
@@ -204,7 +206,7 @@ class OnboardingDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _create_llm_config(self):
-        w = self._make_step_widget("sun", "Elige tu proveedor de IA")
+        w = self._make_step_widget("brain", "Elige tu proveedor de IA")
 
         form = QFormLayout()
         form.setSpacing(8)
@@ -313,7 +315,7 @@ class OnboardingDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _create_stt_config(self):
-        w = self._make_step_widget("mic", "Reconocimiento de voz")
+        w = self._make_step_widget("audio-lines", "Reconocimiento de voz")
 
         form = QFormLayout()
         form.setSpacing(8)
@@ -346,7 +348,7 @@ class OnboardingDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _create_hotkeys(self):
-        w = self._make_step_widget("expand", "Atajos globales")
+        w = self._make_step_widget("keyboard", "Atajos globales")
 
         desc = QLabel(
             "Funcionan en <b>cualquier aplicación</b>, sin enfocar HelPy:",
@@ -419,6 +421,7 @@ class OnboardingDialog(QDialog):
         icon_label.setPixmap(get_icon(icon_name).pixmap(28, 28))
         icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon_label)
+        self._step_icons.append((icon_label, icon_name))
 
         title_label = QLabel(title, widget)
         title_label.setAlignment(Qt.AlignCenter)
