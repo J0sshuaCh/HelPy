@@ -67,11 +67,5 @@ def render_svg_pixmap(name: str, width: int, height: int) -> QPixmap:
 
 
 def get_logo_pixmap(width: int, height: int) -> QPixmap:
-    """Retorna el logo de HelPy adecuado (blanco/negro) según el tema actual."""
-    from app.ui.shared import ui_settings as _uis
-    tema = _uis.get("tema", "")
-    if "(Claro)" in tema:
-        name = "HelpyLogoNegro"
-    else:
-        name = "HelpyLogoBlanco"
-    return render_svg_pixmap(name, width, height)
+    """Retorna el logo de HelPy renderizado al tamaño indicado."""
+    return render_svg_pixmap("Helpylogo", width, height)

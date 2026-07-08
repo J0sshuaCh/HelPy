@@ -29,7 +29,7 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
 
         from PyQt5.QtGui import QIcon
         from app.ui.shared.icons import get_logo_pixmap
-        self.setWindowIcon(QIcon(get_logo_pixmap(32, 32)))
+        self.setWindowIcon(QIcon(get_logo_pixmap(64, 64)))
         
         self.zoom_manager = ZoomManager(self, float(ui_settings.get("script_zoom", 1.0)))
         self.file_loader = FileLoader(self)

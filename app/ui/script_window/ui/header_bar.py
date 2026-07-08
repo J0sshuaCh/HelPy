@@ -12,7 +12,9 @@ class HeaderBar:
         header_row.setContentsMargins(0, 0, 0, 0)
 
         logo_label = QLabel()
-        logo_label.setPixmap(get_logo_pixmap(20, 20).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        logo_label.setPixmap(get_logo_pixmap(36, 36))
+        logo_label.setFixedSize(20, 20)
+        logo_label.setScaledContents(True)
         header_row.addWidget(logo_label)
 
         header_row.addStretch(1)

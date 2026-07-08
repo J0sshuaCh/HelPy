@@ -34,7 +34,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
 
         from PyQt5.QtGui import QIcon
         from app.ui.shared.icons import get_logo_pixmap
-        self.setWindowIcon(QIcon(get_logo_pixmap(32, 32)))
+        self.setWindowIcon(QIcon(get_logo_pixmap(64, 64)))
         
         import json
         from app.utils.path_utils import writable_config_path
