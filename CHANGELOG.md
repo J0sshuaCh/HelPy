@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.6.0] - 2026-07-08
+
+### Added
+- **Onboarding interactivo** — diálogo de primer lanzamiento con formularios funcionales de configuración de LLM y STT, guía de instalación para LM Studio y llama.cpp
+- **VU meter** — medidor de nivel de audio en tiempo real para monitoreo de entrada
+- **Modo compacto** — animación colapsable, exportación de transcripciones, scroll inteligente y búsqueda en texto
+- **Hotkeys configurables** — atajos de teclado personalizables desde el panel de configuración
+- **Validador de configuración** — verifica API keys y proveedores al iniciar la aplicación
+- **Logo HelPy** — logo en SVG y PNG reemplazando texto en taskbar, headers, system tray y onboarding, con soporte theme-aware
+- **AppUserModelID** — correcta agrupación en la barra de tareas de Windows
+- **Selector de temas por modo** — nuevo botón cíclico (🌙 sol / ☀️ luna / 🧬 dna) que filtra el combo de temas mostrando solo variantes Oscuro, Claro o Clásico
+- **Iconos temáticos** — sun, moon, dna, audio-lines, brain, info, keyboard
+
+### Changed
+- Los nombres de temas en el combo ya no muestran el sufijo `(Clasico/Oscuro/Claro)` — el botón de modo indica la categoría
+- Los SVGs sun, moon y dna ahora se tiñen correctamente con el color del tema activo (stroke `#ffffff`)
+- Onboarding rediseñado como ventana independiente no-modal
+
+### Fixed
+- App ya no se cierra al cerrar el onboarding
+- Garbage collection ya no elimina la referencia al onboarding
+- Onboarding con presencia correcta en la barra de tareas de Windows
+- Escalado correcto de logos en diferentes resoluciones
+- Fondo transparente en renderizado de logos PNG
+- Tema oscuro aplicado correctamente al diálogo de onboarding
+- Icono de exportar ahora se diferencia visualmente del de copiar
+- Crash del onboarding al cargar iconos temáticos
+
+### Styling
+- Tooltips descriptivos agregados a botones y controles
+- Altura del onboarding reducida significativamente
+- Título de app cambiado de AYUDIN a HelPy en el onboarding
+- Emojis reemplazados por bullets en sección de instrucciones
+- Sub-título "¿Cómo funciona?" estilizado como sectionLabel
+
 ## [0.5.2] - 2026-06-14
 
 ### Added
