@@ -13,9 +13,8 @@ class HeaderArea(QFrame):
         self.layout.setSpacing(5)
         
         self.logo_label = QLabel()
-        self.logo_label.setPixmap(get_logo_pixmap(36, 36))
-        self.logo_label.setFixedSize(20, 20)
-        self.logo_label.setScaledContents(True)
+        self.logo_label.setPixmap(get_logo_pixmap(38, 20))
+        self.logo_label.setFixedHeight(20)
 
         self.title_label = QLabel(title)
         self.title_label.setObjectName("appTitle")

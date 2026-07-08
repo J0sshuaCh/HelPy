@@ -84,7 +84,7 @@ class OnboardingDialog(QDialog):
         # Actualizar logo según tema
         if hasattr(self, 'title_label'):
             from app.ui.shared.icons import get_logo_pixmap
-            self.title_label.setPixmap(get_logo_pixmap(180, 180))
+            self.title_label.setPixmap(get_logo_pixmap(200, 110))
 
     def cambiar_tema_interfaz(self, nombre_tema: str):
         self._tema_actual = nombre_tema
@@ -107,7 +107,7 @@ class OnboardingDialog(QDialog):
 
         self.title_label = QLabel(self)
         from app.ui.shared.icons import get_logo_pixmap
-        self.title_label.setPixmap(get_logo_pixmap(180, 180))
+        self.title_label.setPixmap(get_logo_pixmap(200, 110))
         self.title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.title_label)
 

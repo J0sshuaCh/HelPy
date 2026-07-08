@@ -67,5 +67,15 @@ def render_svg_pixmap(name: str, width: int, height: int) -> QPixmap:
 
 
 def get_logo_pixmap(width: int, height: int) -> QPixmap:
-    """Retorna el logo de HelPy renderizado al tamaño indicado."""
-    return render_svg_pixmap("Helpylogo", width, height)
+    """Retorna el logo HelPy como QPixmap, eligiendo variante según tema."""
+    from app.ui.shared.settings import ui_settings as _uis
+    tema = _uis.get("tema", "")
+    if "(Claro)" in tema:
+        name = "HelpyLogoNegro"
+    else:
+        name = "HelpyLogoBlanco"
+    path = asset_path(os.path.join("icons", f"{name}.png"))
+    pixmap = QPixmap(path)
+    if pixmap.isNull():
+        return QPixmap(width, height)
+    return pixmap.scaled(width, height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
