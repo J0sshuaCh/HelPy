@@ -1,6 +1,7 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton, QSizePolicy
-from PyQt5.QtCore import QSize
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton, QSizePolicy, QLabel
+from PyQt5.QtCore import QSize, Qt
 from app.ui.shared import get_icon
+from app.ui.shared.icons import get_logo_pixmap
 
 class HeaderBar:
     @staticmethod
@@ -9,6 +10,11 @@ class HeaderBar:
         header_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         header_row = QHBoxLayout(header_widget)
         header_row.setContentsMargins(0, 0, 0, 0)
+
+        logo_label = QLabel()
+        logo_label.setPixmap(get_logo_pixmap(20, 20).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        header_row.addWidget(logo_label)
+
         header_row.addStretch(1)
 
         window.capture_button = QPushButton(window)

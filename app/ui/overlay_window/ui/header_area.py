@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QFrame, QHBoxLayout, QLabel, QSlider, QPushButton, QSizePolicy
 from PyQt5.QtCore import Qt, QSize
 from app.ui.shared import get_icon
+from app.ui.shared.icons import get_logo_pixmap
 
 class HeaderArea(QFrame):
     def __init__(self, title="HelPy", initial_opacity=100, parent=None):
@@ -11,6 +12,9 @@ class HeaderArea(QFrame):
         self.layout.setContentsMargins(10, 10, 10, 2)
         self.layout.setSpacing(5)
         
+        self.logo_label = QLabel()
+        self.logo_label.setPixmap(get_logo_pixmap(20, 20).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
         self.title_label = QLabel(title)
         self.title_label.setObjectName("appTitle")
         
@@ -39,6 +43,7 @@ class HeaderArea(QFrame):
         self.edge_button.setIconSize(QSize(14, 14))
         self.edge_button.setToolTip("Colapsar/expandir panel\nAtajo: AltGr + H")
         
+        self.layout.addWidget(self.logo_label)
         self.layout.addWidget(self.title_label)
         self.layout.addStretch(1)
         self.layout.addWidget(self.capture_button)

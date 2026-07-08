@@ -31,6 +31,10 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.opacity = ui_settings.get("overlay_opacity", 100)
         self.capture_mode = ui_settings.get("capture_mode", "both")
         self.compact_mode = ui_settings.get("compact_mode", False)
+
+        from PyQt5.QtGui import QIcon
+        from app.ui.shared.icons import get_logo_pixmap
+        self.setWindowIcon(QIcon(get_logo_pixmap(32, 32)))
         
         import json
         from app.utils.path_utils import writable_config_path

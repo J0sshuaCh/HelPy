@@ -26,6 +26,10 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self._last_script_path = ui_settings.get("script_path")
         self._opacity = float(ui_settings.get("script_opacity", 0.85))
         self.tema_actual = ui_settings.get("tema", "Slate Minimalist (Clasico)")
+
+        from PyQt5.QtGui import QIcon
+        from app.ui.shared.icons import get_logo_pixmap
+        self.setWindowIcon(QIcon(get_logo_pixmap(32, 32)))
         
         self.zoom_manager = ZoomManager(self, float(ui_settings.get("script_zoom", 1.0)))
         self.file_loader = FileLoader(self)

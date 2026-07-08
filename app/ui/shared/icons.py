@@ -50,3 +50,28 @@ def get_text_icon(text: str, color: QColor) -> QIcon:
     painter.drawText(pixmap.rect(), Qt.AlignCenter, text)
     painter.end()
     return QIcon(pixmap)
+
+
+def render_svg_pixmap(name: str, width: int, height: int) -> QPixmap:
+    """Renderiza un SVG de la carpeta icons a un QPixmap del tamaño dado."""
+    path = asset_path(os.path.join("icons", f"{name}.svg"))
+    pixmap = QPixmap(width, height)
+    pixmap.fill(Qt.transparent)
+    if not os.path.exists(path):
+        return pixmap
+    renderer = QSvgRenderer(path)
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return pixmap
+
+
+def get_logo_pixmap(width: int, height: int) -> QPixmap:
+    """Retorna el logo de HelPy adecuado (blanco/negro) según el tema actual."""
+    from app.ui.shared import ui_settings as _uis
+    tema = _uis.get("tema", "")
+    if "(Claro)" in tema:
+        name = "HelpyLogoNegro"
+    else:
+        name = "HelpyLogoBlanco"
+    return render_svg_pixmap(name, width, height)
