@@ -120,7 +120,10 @@ class OnboardingDialog(QDialog):
         self.steps_stack.addWidget(self._create_stt_config())    # 2
         self.steps_stack.addWidget(self._create_hotkeys())       # 3
         self.steps_stack.addWidget(self._create_ready())         # 4
-        layout.addWidget(self.steps_stack, 1)
+        layout.addWidget(self.steps_stack)
+        
+        # Espacio mínimo entre contenido y botones
+        layout.addSpacing(4)
 
         # Navegación
         nav_layout = QHBoxLayout()
@@ -190,7 +193,6 @@ class OnboardingDialog(QDialog):
         final.setWordWrap(True)
         w.layout().addWidget(final)
 
-        w.layout().addStretch()
         return w
 
     # ------------------------------------------------------------------
@@ -235,7 +237,6 @@ class OnboardingDialog(QDialog):
 
         w.layout().addLayout(form)
         self._apply_llm_provider_visibility()
-        w.layout().addStretch()
         return w
 
     def _on_llm_provider_changed(self):
@@ -334,7 +335,6 @@ class OnboardingDialog(QDialog):
         )
         desc.setWordWrap(True)
         w.layout().addWidget(desc)
-        w.layout().addStretch()
         return w
 
     # ------------------------------------------------------------------
@@ -377,7 +377,6 @@ class OnboardingDialog(QDialog):
         )
         tip.setWordWrap(True)
         w.layout().addWidget(tip)
-        w.layout().addStretch()
         return w
 
     # ------------------------------------------------------------------
@@ -400,7 +399,6 @@ class OnboardingDialog(QDialog):
         )
         final.setWordWrap(True)
         w.layout().addWidget(final)
-        w.layout().addStretch()
         return w
 
     # ------------------------------------------------------------------
