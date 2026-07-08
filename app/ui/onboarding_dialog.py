@@ -51,7 +51,8 @@ class OnboardingDialog(QDialog):
     """Diálogo de bienvenida con 5 pasos interactivos."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(None)
+        self._overlay_window = parent  # guardado aparte, no como parent Qt
         self.setWindowTitle("Bienvenido a HelPy")
         self.setMinimumSize(520, 400)
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
@@ -505,10 +506,9 @@ class OnboardingDialog(QDialog):
         except Exception as e:
             print(f"Onboarding: error al recargar LLM client: {e}")
 
-        parent = self.parentWidget()
-        if parent and hasattr(parent, "assistant"):
+        if self._overlay_window and hasattr(self._overlay_window, "assistant"):
             try:
-                parent.assistant.set_stt_settings(
+                self._overlay_window.assistant.set_stt_settings(
                     stt_provider,
                     self._existing_config.get("whisper_model", "tiny"),
                 )
