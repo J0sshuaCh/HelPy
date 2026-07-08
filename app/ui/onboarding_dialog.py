@@ -7,17 +7,19 @@ import os
 import json
 import webbrowser
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QWidget, QStackedWidget, QFrame, QComboBox, QLineEdit, QFormLayout
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QWidget, QStackedWidget, QComboBox, QLineEdit, QFormLayout
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont
-from app.ui.shared import get_icon
+from app.ui.shared import get_icon, ui_settings
+from app.ui.themes import obtener_qss, PALETAS
 from app.utils.path_utils import writable_config_path
 from app.ui.overlay_window.hotkeys import HOTKEY_DESCRIPTIONS, DEFAULT_HOTKEYS
 
 
 TOTAL_STEPS = 5
+TEMA_POR_DEFECTO = "Slate Minimalist (Clasico)"
 
 LLM_PROVIDERS = {
     "google": "Google Gemini (gratis, en la nube)",
@@ -39,12 +41,16 @@ class OnboardingDialog(QDialog):
         self.setWindowTitle("Bienvenido a AYUDIN")
         self.setMinimumSize(520, 460)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setObjectName("onboardingDialog")
         self._current_step = 0
+        self._tema_actual = ui_settings.get("tema", TEMA_POR_DEFECTO)
 
         # Cargar config existente para pre-llenar (si ya existe)
         self._load_existing_config()
 
         self._init_ui()
+        self._aplicar_tema()
 
     def _load_existing_config(self):
         """Carga config.json existente para pre-llenar los formularios."""
@@ -56,6 +62,19 @@ class OnboardingDialog(QDialog):
                     self._existing_config = json.load(f)
             except (json.JSONDecodeError, OSError):
                 pass
+
+    # ------------------------------------------------------------------
+    # Tema / Estilo
+    # ------------------------------------------------------------------
+
+    def _aplicar_tema(self):
+        """Aplica el QSS del tema actual al diálogo."""
+        self.setStyleSheet(obtener_qss(self._tema_actual))
+
+    def cambiar_tema_interfaz(self, nombre_tema: str):
+        """Callback invocado por ThemeManager cuando cambia el tema."""
+        self._tema_actual = nombre_tema
+        self._aplicar_tema()
 
     # ------------------------------------------------------------------
     # UI Principal
@@ -116,6 +135,7 @@ class OnboardingDialog(QDialog):
         skip_layout.addStretch(1)
         self.skip_btn = QPushButton("Saltar guía", self)
         self.skip_btn.setObjectName("statusLabel")
+        self.skip_btn.setFlat(True)
         self.skip_btn.clicked.connect(self.accept)
         skip_layout.addWidget(self.skip_btn)
         layout.addLayout(skip_layout)
@@ -163,7 +183,6 @@ class OnboardingDialog(QDialog):
         for key, label in LLM_PROVIDERS.items():
             self.llm_provider_combo.addItem(label, key)
 
-        # Pre-fill from existing config
         existing_provider = self._existing_config.get("provider", "google")
         idx = self.llm_provider_combo.findData(existing_provider)
         if idx >= 0:
@@ -180,33 +199,23 @@ class OnboardingDialog(QDialog):
         self.api_key_input.setToolTip("API key del proveedor seleccionado")
         form.addRow("API Key:", self.api_key_input)
 
-        # Link para obtener API key
-        self.api_link_label = QLabel(
-            '<a href="{}" style="color: #8ab4f8;">Obtener API key en Google AI Studio →</a>'.format(
-                GOOGLE_AI_STUDIO_URL
-            ),
-            w
-        )
-        self.api_link_label.setOpenExternalLinks(True)
-        self.api_link_label.setToolTip("Abre Google AI Studio en tu navegador")
-        form.addRow("", self.api_link_label)
+        # Link para obtener API key (QPushButton estilizado como link)
+        self.api_link_btn = QPushButton("", w)
+        self.api_link_btn.setObjectName("linkButton")
+        self.api_link_btn.setCursor(Qt.PointingHandCursor)
+        self.api_link_btn.setToolTip("Abrir en el navegador")
+        self.api_link_btn.clicked.connect(self._abrir_link_api_key)
+        form.addRow("", self.api_link_btn)
 
-        # Instrucciones adicionales
-        self.llm_instructions = QLabel(
-            "<b>¿Cómo obtener una API key de Google?</b>\n"
-            "1. Haz clic en el enlace de arriba\n"
-            "2. Inicia sesión con tu cuenta de Google\n"
-            "3. Haz clic en 'Create API Key'\n"
-            "4. Copia la clave y pégala aquí\n\n"
-            "Es <b>gratuita</b> y no requiere tarjeta de crédito.",
-            w
-        )
+        # Instrucciones
+        self.llm_instructions = QLabel("", w)
         self.llm_instructions.setWordWrap(True)
+        self.llm_instructions.setAlignment(Qt.AlignLeft)
         form.addRow("", self.llm_instructions)
 
         w.layout().addLayout(form)
 
-        # Apply initial visibility
+        # Visibilidad inicial según el proveedor
         self._apply_llm_provider_visibility()
         w.layout().addStretch()
         return w
@@ -219,15 +228,11 @@ class OnboardingDialog(QDialog):
         is_cloud = provider_key in CLOUD_PROVIDERS
 
         self.api_key_input.setVisible(is_cloud)
-        self.api_link_label.setVisible(is_cloud)
+        self.api_link_btn.setVisible(is_cloud)
         self.llm_instructions.setVisible(is_cloud)
 
         if is_cloud and provider_key == "google":
-            self.api_link_label.setText(
-                '<a href="{}" style="color: #8ab4f8;">Obtener API key en Google AI Studio →</a>'.format(
-                    GOOGLE_AI_STUDIO_URL
-                )
-            )
+            self.api_link_btn.setText("Obtener API key en Google AI Studio →")
             self.llm_instructions.setText(
                 "<b>¿Cómo obtener una API key de Google?</b>\n"
                 "1. Haz clic en el enlace de arriba\n"
@@ -238,11 +243,7 @@ class OnboardingDialog(QDialog):
             )
             self.api_key_input.setPlaceholderText("Pega tu API key de Google aquí...")
         elif is_cloud and provider_key == "groq":
-            self.api_link_label.setText(
-                '<a href="{}" style="color: #8ab4f8;">Obtener API key en Groq Console →</a>'.format(
-                    GROQ_CONSOLE_URL
-                )
-            )
+            self.api_link_btn.setText("Obtener API key en Groq Console →")
             self.llm_instructions.setText(
                 "<b>¿Cómo obtener una API key de Groq?</b>\n"
                 "1. Haz clic en el enlace de arriba\n"
@@ -252,6 +253,14 @@ class OnboardingDialog(QDialog):
                 "Groq ofrece acceso gratuito a modelos rápidos."
             )
             self.api_key_input.setPlaceholderText("Pega tu API key de Groq aquí...")
+
+    def _abrir_link_api_key(self):
+        """Abre la URL correcta según el proveedor seleccionado."""
+        provider_key = self.llm_provider_combo.currentData()
+        if provider_key == "google":
+            webbrowser.open(GOOGLE_AI_STUDIO_URL)
+        elif provider_key == "groq":
+            webbrowser.open(GROQ_CONSOLE_URL)
 
     # ------------------------------------------------------------------
     # Paso 3: Configurar STT
@@ -364,6 +373,7 @@ class OnboardingDialog(QDialog):
 
         title_label = QLabel(title, widget)
         title_label.setAlignment(Qt.AlignCenter)
+        title_label.setObjectName("sectionLabel")
         font = QFont()
         font.setPointSize(13)
         font.setBold(True)
@@ -432,7 +442,7 @@ class OnboardingDialog(QDialog):
         folder = os.path.dirname(config_path)
         os.makedirs(folder, exist_ok=True)
 
-        stt_provider = self.stt_provider_combo.currentData()  # "google" o "whisper"
+        stt_provider = self.stt_provider_combo.currentData()
         llm_provider = self.llm_provider_combo.currentData()
         api_key = self.api_key_input.text().strip()
 

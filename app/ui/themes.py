@@ -240,4 +240,33 @@ def obtener_qss(tema_nombre):
         QScrollBar::handle:vertical {{ background: {t['borde']}; border-radius: 4px; }}
         QSlider::groove:horizontal {{ background: {t['borde']}; height: 4px; border-radius: 2px; }}
         QSlider::handle:horizontal {{ background: {t['resaltado']}; border-radius: 7px; width: 14px; height: 14px; }}
+        #onboardingDialog {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {t['fondo']}, stop:1 {t['fondo_input']});
+            border: 1px solid {t['borde']};
+            border-radius: 10px;
+        }}
+        #linkButton {{
+            background: transparent;
+            border: none;
+            color: {t['acento']};
+            font-size: 11px;
+            padding: 0px;
+        }}
+        #linkButton:hover {{
+            background: transparent;
+            color: {t['resaltado']};
+        }}
+        #saveButton {{
+            background-color: {t['acento']};
+            color: #FFFFFF;
+            font-weight: bold;
+            border: 1px solid {t['acento']};
+            border-radius: 8px;
+            padding: 8px 20px;
+        }}
+        #saveButton:hover {{
+            background-color: {t['resaltado']};
+            border-color: {t['resaltado']};
+        }}
     """
