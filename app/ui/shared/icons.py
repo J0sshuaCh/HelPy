@@ -75,7 +75,13 @@ def get_logo_pixmap(width: int, height: int) -> QPixmap:
     else:
         name = "HelpyLogoBlanco"
     path = asset_path(os.path.join("icons", f"{name}.png"))
-    pixmap = QPixmap(path)
-    if pixmap.isNull():
+    src = QPixmap(path)
+    if src.isNull():
         return QPixmap(width, height)
-    return pixmap.scaled(width, height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    scaled = src.scaled(width, height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    result = QPixmap(scaled.size())
+    result.fill(Qt.transparent)
+    p = QPainter(result)
+    p.drawPixmap(0, 0, scaled)
+    p.end()
+    return result
