@@ -326,8 +326,10 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     def _show_onboarding(self):
         from app.ui.onboarding_dialog import OnboardingDialog
         dialog = OnboardingDialog(self)
-        dialog.exec_()
-        ui_settings.set("onboarding_completed", True)
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.Window)
+        dialog.accepted.connect(lambda: ui_settings.set("onboarding_completed", True))
+        dialog.rejected.connect(lambda: ui_settings.set("onboarding_completed", True))
+        dialog.show()
     
     def _apply_global_opacity(self, value):
         self.opacity = value
