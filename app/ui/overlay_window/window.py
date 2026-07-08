@@ -328,10 +328,13 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self._onboarding_dialog = OnboardingDialog(self)
         self._onboarding_dialog.accepted.connect(self._on_onboarding_done)
         self._onboarding_dialog.rejected.connect(self._on_onboarding_done)
+        # Evitar que Qt cierre la app al cerrar el único Qt.Window visible
+        QApplication.instance().setQuitOnLastWindowClosed(False)
         self._onboarding_dialog.show()
 
     def _on_onboarding_done(self):
         ui_settings.set("onboarding_completed", True)
+        QApplication.instance().setQuitOnLastWindowClosed(True)
         self._onboarding_dialog = None
     
     def _apply_global_opacity(self, value):
