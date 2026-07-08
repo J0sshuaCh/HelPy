@@ -1,5 +1,5 @@
 """
-Diálogo de onboarding para el primer lanzamiento de AYUDIN.
+Diálogo de onboarding para el primer lanzamiento de HelPy.
 5 pasos: Introducción → Configurar LLM → Configurar STT → Atajos → ¡Listo!
 Incluye formularios funcionales que guardan config.json directamente.
 """
@@ -52,8 +52,8 @@ class OnboardingDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Bienvenido a AYUDIN")
-        self.setMinimumSize(540, 500)
+        self.setWindowTitle("Bienvenido a HelPy")
+        self.setMinimumSize(540, 440)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setObjectName("onboardingDialog")
         self._current_step = 0
@@ -97,13 +97,14 @@ class OnboardingDialog(QDialog):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 22, 28, 22)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 16, 24, 14)
+        layout.setSpacing(8)
 
-        self.title_label = QLabel("Bienvenido a AYUDIN", self)
+        self.title_label = QLabel("Bienvenido a HelPy", self)
         self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setObjectName("appTitle")
         tf = QFont()
-        tf.setPointSize(18)
+        tf.setPointSize(16)
         tf.setBold(True)
         self.title_label.setFont(tf)
         layout.addWidget(self.title_label)
@@ -123,7 +124,7 @@ class OnboardingDialog(QDialog):
 
         # Navegación
         nav_layout = QHBoxLayout()
-        nav_layout.setSpacing(10)
+        nav_layout.setSpacing(8)
         nav_layout.addStretch(1)
 
         self.prev_btn = QPushButton("← Atrás", self)
@@ -159,7 +160,7 @@ class OnboardingDialog(QDialog):
     # ------------------------------------------------------------------
 
     def _create_intro(self):
-        w = self._make_step_widget("monitor", "¿Qué es AYUDIN?")
+        w = self._make_step_widget("monitor", "¿Qué es HelPy?")
 
         desc = QLabel(
             "Un asistente de escritorio que escucha tu voz, la convierte\n"
@@ -281,7 +282,7 @@ class OnboardingDialog(QDialog):
                 "  2.  Instálalo y busca un modelo\n"
                 "  3.  Ve a la pestaña <b>Developer</b>\n"
                 "  4.  Activa <b>Start Server</b>\n\n"
-                "AYUDIN se conecta automáticamente."
+                "HelPy se conecta automáticamente."
             )
 
         elif key == "local":
@@ -344,7 +345,7 @@ class OnboardingDialog(QDialog):
         w = self._make_step_widget("expand", "Atajos globales")
 
         desc = QLabel(
-            "Funcionan en <b>cualquier aplicación</b>, sin enfocar AYUDIN:",
+            "Funcionan en <b>cualquier aplicación</b>, sin enfocar HelPy:",
             w
         )
         desc.setWordWrap(True)
@@ -409,11 +410,11 @@ class OnboardingDialog(QDialog):
     def _make_step_widget(self, icon_name: str, title: str) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(8)
-        layout.setContentsMargins(8, 2, 8, 2)
+        layout.setSpacing(5)
+        layout.setContentsMargins(8, 0, 8, 0)
 
         icon_label = QLabel()
-        icon_label.setPixmap(get_icon(icon_name).pixmap(40, 40))
+        icon_label.setPixmap(get_icon(icon_name).pixmap(32, 32))
         icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon_label)
 
@@ -421,7 +422,7 @@ class OnboardingDialog(QDialog):
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setObjectName("sectionLabel")
         font = QFont()
-        font.setPointSize(14)
+        font.setPointSize(13)
         font.setBold(True)
         title_label.setFont(font)
         layout.addWidget(title_label)

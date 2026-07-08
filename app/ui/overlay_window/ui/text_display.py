@@ -88,7 +88,7 @@ class TextDisplayPanel(QFrame):
         
         # Generar contenido
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        content = f"# Conversación AYUDIN - {timestamp}\n\n"
+        content = f"# Conversación HelPy - {timestamp}\n\n"
         
         if transcription:
             content += f"## Transcripción\n\n{transcription}\n\n"
