@@ -44,6 +44,9 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.tema_actual = nombre_tema
         self._apply_styles()
         self._update_capture_button()
+        self._sync_autoscroll_button()
+        self.scroll_slower_btn.setIcon(get_icon("minus"))
+        self.scroll_faster_btn.setIcon(get_icon("plus"))
         icon_name = "expand" if self.is_collapsed else "collapse"
         self.edge_button.setIcon(get_icon(icon_name))
 
