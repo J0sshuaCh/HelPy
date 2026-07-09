@@ -16,6 +16,7 @@ from .ui import HeaderBar, Toolbar, TextViewer, PdfViewer
 from .file_loader import FileLoader
 from .zoom import ZoomManager
 from .search_bar import SearchBar
+from .autoscroll import AutoScrollManager
 
 class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     def __init__(self, parent=None):
@@ -33,6 +34,8 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         
         self.zoom_manager = ZoomManager(self, float(ui_settings.get("script_zoom", 1.0)))
         self.file_loader = FileLoader(self)
+        self.auto_scroll = AutoScrollManager(self)
+        self.auto_scroll.stopped.connect(self._sync_autoscroll_button)
 
         self._init_ui()
         self._apply_settings()
@@ -70,6 +73,7 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         container_layout.addLayout(title_row)
 
         Toolbar.setup(container_layout, self, self._opacity)
+        Toolbar.setup_autoscroll(container_layout, self)
         
         # Barra de búsqueda
         self.search_bar = SearchBar(self)
@@ -163,6 +167,26 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         ui_settings.set("script_opacity", self._opacity)
         self._apply_global_opacity()
 
+    def _sync_autoscroll_button(self):
+        if self.auto_scroll.is_active:
+            self.scroll_play_btn.setIcon(get_icon("pause"))
+            self.scroll_play_btn.setToolTip("Pausar desplazamiento")
+        else:
+            self.scroll_play_btn.setIcon(get_icon("play"))
+            self.scroll_play_btn.setToolTip("Iniciar desplazamiento automático")
+
+    def _toggle_autoscroll(self):
+        self.auto_scroll.toggle()
+        self._sync_autoscroll_button()
+
+    def _autoscroll_faster(self):
+        self.auto_scroll.speed += 1
+        self.scroll_speed_label.setText(str(self.auto_scroll.speed))
+
+    def _autoscroll_slower(self):
+        self.auto_scroll.speed -= 1
+        self.scroll_speed_label.setText(str(self.auto_scroll.speed))
+
     def _apply_global_opacity(self):
         self.setWindowOpacity(self._opacity)
         # Apply specifically to PDF pages if they exist
@@ -177,6 +201,11 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self._last_script_path = path
         ui_settings.set("script_path", path)
         self.path_label.setText(path)
+
+        self.auto_scroll.reset()
+        self.scroll_play_btn.setIcon(get_icon("play"))
+        self.scroll_play_btn.setToolTip("Iniciar desplazamiento automático")
+        self.scroll_speed_label.setText(str(self.auto_scroll.speed))
         
         # Scroll to top
         if self.viewer_stack.currentWidget() == self.md_view:

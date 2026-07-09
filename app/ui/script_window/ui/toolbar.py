@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QLabel, QSlider
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSize
+from app.ui.shared import get_icon
 
 class Toolbar:
     @staticmethod
@@ -28,3 +29,42 @@ class Toolbar:
         button_row.addWidget(window.opacity_slider)
 
         parent_layout.addLayout(button_row)
+
+    @staticmethod
+    def setup_autoscroll(parent_layout, window):
+        row = QHBoxLayout()
+        row.setSpacing(6)
+
+        row.addStretch(1)
+
+        window.scroll_play_btn = QPushButton("", window)
+        window.scroll_play_btn.setObjectName("edgeButton")
+        window.scroll_play_btn.setIcon(get_icon("play"))
+        window.scroll_play_btn.setIconSize(QSize(14, 14))
+        window.scroll_play_btn.setToolTip("Iniciar desplazamiento automático")
+        window.scroll_play_btn.clicked.connect(window._toggle_autoscroll)
+        row.addWidget(window.scroll_play_btn)
+
+        window.scroll_slower_btn = QPushButton("", window)
+        window.scroll_slower_btn.setObjectName("edgeButton")
+        window.scroll_slower_btn.setIcon(get_icon("minus"))
+        window.scroll_slower_btn.setIconSize(QSize(14, 14))
+        window.scroll_slower_btn.setToolTip("Reducir velocidad")
+        window.scroll_slower_btn.clicked.connect(window._autoscroll_slower)
+        row.addWidget(window.scroll_slower_btn)
+
+        window.scroll_speed_label = QLabel("3", window)
+        window.scroll_speed_label.setObjectName("statusLabel")
+        window.scroll_speed_label.setFixedWidth(20)
+        window.scroll_speed_label.setAlignment(Qt.AlignCenter)
+        row.addWidget(window.scroll_speed_label)
+
+        window.scroll_faster_btn = QPushButton("", window)
+        window.scroll_faster_btn.setObjectName("edgeButton")
+        window.scroll_faster_btn.setIcon(get_icon("plus"))
+        window.scroll_faster_btn.setIconSize(QSize(14, 14))
+        window.scroll_faster_btn.setToolTip("Aumentar velocidad")
+        window.scroll_faster_btn.clicked.connect(window._autoscroll_faster)
+        row.addWidget(window.scroll_faster_btn)
+
+        parent_layout.addLayout(row)

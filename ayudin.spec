@@ -83,7 +83,14 @@ a_server = Analysis(
     binaries=binaries,
     datas=[],
     hiddenimports=['llama_cpp', 'flask', 'waitress'],
-    excludes=[],
+    excludes=[
+        'tkinter', 'matplotlib', 'PIL', 'cv2',
+        'torch', 'torchvision', 'torchaudio',
+        'numba', 'scipy', 'pandas', 'sklearn',
+        'tensorflow', 'jax', 'ray',
+        'notebook', 'jupyter', 'ipython',
+        'bokeh', 'plotly', 'dash',
+    ],
     noarchive=False,
     cipher=block_cipher,
 )
