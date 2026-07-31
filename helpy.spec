@@ -44,7 +44,7 @@ hiddenimports = [
     "ssl",
 ]
 
-# 1. Análisis para AYUDIN (Main App)
+# 1. Análisis para HelPy (Main App)
 a = Analysis(
     ['app/main.py'],
     pathex=[],
@@ -70,7 +70,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='AYUDIN',
+    name='HelPy',
     debug=False,
     console=False,
     icon=None,
@@ -114,5 +114,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name='AYUDIN',
+    name='HelPy',
 )

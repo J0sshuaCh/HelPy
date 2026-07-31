@@ -51,10 +51,10 @@ app/config/ui_settings.json
 dist/
 build/
 *.spec
-!ayudin.spec
+!helpy.spec
 
 # User config copy (PyInstaller mode)
-ayudin_config/
+helpy_config/
 
 # Models
 models/gemma-3-1b-it-Q4_K_M.gguf
