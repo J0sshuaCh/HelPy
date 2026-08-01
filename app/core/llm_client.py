@@ -116,7 +116,7 @@ class LlmClient:
         
         # En PyInstaller, el servidor es un ejecutable separado
         if getattr(sys, 'frozen', False):
-            # En modo onedir, el servidor está dentro del bundle dist/AYUDIN/
+            # En modo onedir, el servidor está dentro del bundle dist/HelPy/
             executable = Path(sys._MEIPASS).parent / "inference_server.exe"
             cmd = [str(executable)]
         else:

@@ -40,14 +40,14 @@ def _try_create_overlay_window():
         print("="*50 + "\n")
         
         log_dir = tempfile.gettempdir()
-        log_path = os.path.join(log_dir, "ayudin_overlay_error.log")
+        log_path = os.path.join(log_dir, "helpy_overlay_error.log")
         with open(log_path, "w") as f:
             f.write("Error: No se pudo iniciar OverlayWindow. Traceback:\n")
             traceback.print_exc(file=f)
         return None
 
 def main():
-    print("Iniciando AYUDIN...")
+    print("Iniciando HelPy...")
 
     app = QApplication(sys.argv)
     
@@ -80,7 +80,7 @@ def main():
     if overlay_window:
         QTimer.singleShot(200, _raise_overlay)
 
-    print("AYUDIN listo.")
+    print("HelPy listo.")
     print("  - Presiona Esc para salir")
     print("  - Usa el icono en la bandeja del sistema para grabar/detener")
 

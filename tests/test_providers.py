@@ -153,7 +153,7 @@ def test_local():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test de proveedores LLM de AYUDIN")
+    parser = argparse.ArgumentParser(description="Test de proveedores LLM de HelPy")
     parser.add_argument(
         "--provider",
         choices=["all", "lmstudio", "google", "groq", "local"],

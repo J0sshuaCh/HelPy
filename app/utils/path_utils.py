@@ -10,7 +10,7 @@ def _appdata_dir() -> Path:
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    return base / "AYUDIN"
+    return base / "helpy"
 
 
 def _bundle_dir() -> Path:

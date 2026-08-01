@@ -97,7 +97,7 @@ class TextDisplayPanel(QFrame):
             content += f"## Respuesta IA\n\n{llm_response}\n"
         
         # Guardar archivo
-        default_name = f"ayudin_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        default_name = f"helpy_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Exportar conversación",
