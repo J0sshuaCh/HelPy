@@ -29,8 +29,8 @@ jobs:
       - name: Debug - list files
         run: Get-ChildItem -Name *.spec, *.py, *.toml, *.txt
 
-      - name: Build AYUDIN.exe + inference_server.exe
-        run: python -m PyInstaller ayudin.spec --clean -y
+      - name: Build HelPy.exe + inference_server.exe
+        run: python -m PyInstaller helpy.spec --clean -y
         working-directory: ${{ github.workspace }}
 
       - name: Clean duplicate inference_server.exe
@@ -39,19 +39,19 @@ jobs:
 
       - name: Zip artifact
         run: |
-          Compress-Archive -Path dist/AYUDIN/* -DestinationPath AYUDIN-${{ github.ref_name }}.zip
+          Compress-Archive -Path dist/HelPy/* -DestinationPath HelPy-${{ github.ref_name }}.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: AYUDIN-*.zip
+          files: HelPy-*.zip
           body: |
-            ## AYUDIN ${{ github.ref_name }}
+            ## HelPy ${{ github.ref_name }}
 
             ### Instalación
-            1. Descargar `AYUDIN-${{ github.ref_name }}.zip`
+            1. Descargar `HelPy-${{ github.ref_name }}.zip`
             2. Extraer en cualquier carpeta
-            3. Ejecutar `AYUDIN.exe`
+            3. Ejecutar `HelPy.exe`
 
             ### Configuración
             - Abrir el programa → **Configurar LLM** → elegir proveedor

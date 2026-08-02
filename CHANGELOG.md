@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Proyecto renombrado de **AYUDIN** a **HelPy**: spec (`helpy.spec`), exe (`HelPy.exe`), módulo (`helpy`), carpeta de datos (`%APPDATA%\helpy`), artefactos de release (`HelPy-*.zip`) y prefijos de exportación/logs.
+
 ## [0.6.0] - 2026-07-08
 
 ### Added

@@ -11,12 +11,12 @@ $VenvDir = Join-Path $ProjectRoot ".venv"
 $VenvScripts = Join-Path $VenvDir "Scripts"
 $VenvPython = Join-Path $VenvScripts "python.exe"
 
-$SpecFile = Join-Path $ProjectRoot "ayudin.spec"
+$SpecFile = Join-Path $ProjectRoot "helpy.spec"
 $DistDir = Join-Path $ProjectRoot "dist"
 $BuildDir = Join-Path $ProjectRoot "build"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  AYUDIN - PyInstaller Build" -ForegroundColor Cyan
+Write-Host "  HelPy - PyInstaller Build" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -44,7 +44,7 @@ if ($Clean) {
 }
 
 Write-Host ""
-Write-Host "Building AYUDIN..." -ForegroundColor Green
+Write-Host "Building HelPy..." -ForegroundColor Green
 
 $args = @($SpecFile, "--clean", "-y")
 if ($NoUPX) { $args += "--noupx" }
@@ -58,14 +58,14 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Build completed!" -ForegroundColor Green
-$outputDir = Join-Path $DistDir "AYUDIN"
+$outputDir = Join-Path $DistDir "HelPy"
 Write-Host "Output: $outputDir" -ForegroundColor Cyan
 
-$exePath = Join-Path $outputDir "AYUDIN.exe"
+$exePath = Join-Path $outputDir "HelPy.exe"
 if (Test-Path $exePath) {
     $size = (Get-Item $exePath).Length / 1MB
     $totalSize = (Get-ChildItem -Recurse $outputDir | Measure-Object -Property Length -Sum).Sum / 1MB
-    Write-Host "AYUDIN.exe: $([math]::Round($size, 1)) MB" -ForegroundColor Gray
+    Write-Host "HelPy.exe: $([math]::Round($size, 1)) MB" -ForegroundColor Gray
     Write-Host "Total: $([math]::Round($totalSize, 1)) MB" -ForegroundColor Gray
 }
 

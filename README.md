@@ -1,4 +1,4 @@
-# AYUDIN (HelPy)
+# HelPy
 
 **Asistente de voz con transcripción en tiempo real y LLM local/cloud.**
 
@@ -119,7 +119,7 @@ app/
 .\scripts\build.ps1
 ```
 
-Requiere PyInstaller. Genera `dist/AYUDIN/` con `AYUDIN.exe`.
+Requiere PyInstaller. Genera `dist/HelPy/` con `HelPy.exe`.
 
 ## Licencia
 
