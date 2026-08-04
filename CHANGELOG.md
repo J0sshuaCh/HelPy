@@ -2,8 +2,23 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-04
+
+### Added
+- **Sistema de logging** centralizado con `app.utils.logger` y migración del `DualChannelTranscriber` al nuevo logger estructurado.
+- **Indicador de grabación** visual en overlay con animación de pulso durante captura de audio.
+- **Diálogo de preferencias** para configuración rápida de LLM, STT, y apariencia desde el overlay.
+- **Atajos de teclado** configurables con visualización unificada (`HotkeysDisplay`, `HotkeyButton`).
+- **Autoscroll** en ScriptWindow con controles de toggle y sincronización del botón.
+- **Soporte WCAG** en sistema de temas con paletas de colores dinámicas y contraste accesible.
+
 ### Changed
 - Proyecto renombrado de **AYUDIN** a **HelPy**: spec (`helpy.spec`), exe (`HelPy.exe`), módulo (`helpy`), carpeta de datos (`%APPDATA%\helpy`), artefactos de release (`HelPy-*.zip`) y prefijos de exportación/logs.
+- Reorganización modular de ventanas: `overlay_window` y `script_window` extraídos en subpaquetes con componentes de UI independientes.
+- Iconos de copiar/descargar actualizados a SVGs coherentes con el tema.
+
+### Fixed
+- Controladores corregidos y ajustes varios de UI para estabilidad general.
 
 ## [0.6.0] - 2026-07-08
 
