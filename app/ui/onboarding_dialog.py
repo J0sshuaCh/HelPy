@@ -1,6 +1,6 @@
 """
 Diálogo de onboarding para el primer lanzamiento de HelPy.
-5 pasos: Introducción → Configurar LLM → Configurar STT → Atajos → ¡Listo!
+5 pasos: Introducción → Configurar IA → Configurar voz → Atajos → ¡Listo!
 Incluye formularios funcionales que guardan config.json directamente.
 """
 import os
@@ -11,16 +11,20 @@ from PyQt5.QtWidgets import (
     QWidget, QStackedWidget, QComboBox, QLineEdit, QFormLayout,
     QDesktopWidget, QFrame
 )
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
-from app.ui.shared import get_icon, ui_settings
-from app.ui.themes import obtener_qss, PALETAS
+from app.ui.shared import get_icon, ui_settings, DragMixin
+from app.ui.themes import obtener_qss
 from app.utils.path_utils import writable_config_path
-from app.ui.overlay_window.hotkeys import HOTKEY_DESCRIPTIONS, DEFAULT_HOTKEYS
+from app.ui.overlay_window.hotkeys import HOTKEY_DESCRIPTIONS
+from app.ui.shared.hotkeys_display import get_hotkey_display
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 TOTAL_STEPS = 5
-TEMA_POR_DEFECTO = "Slate Minimalist (Clasico)"
+TEMA_POR_DEFECTO = "Slate Minimalist (Clásico)"
 
 LLM_PROVIDERS = {
     "google": "Google Gemini  (gratis, en la nube)",
@@ -47,7 +51,7 @@ SEPARATOR = (
 )
 
 
-class OnboardingDialog(QDialog):
+class OnboardingDialog(DragMixin, QDialog):
     """Diálogo de bienvenida con 5 pasos interactivos."""
 
     def __init__(self, parent=None):
@@ -117,7 +121,7 @@ class OnboardingDialog(QDialog):
 
         self.step_indicator = QLabel("", self)
         self.step_indicator.setAlignment(Qt.AlignCenter)
-        self.step_indicator.setObjectName("statusLabel")
+        self.step_indicator.setObjectName("metaLabel")
         layout.addWidget(self.step_indicator)
 
         self.steps_stack = QStackedWidget(self)
@@ -136,16 +140,16 @@ class OnboardingDialog(QDialog):
         nav_layout.setSpacing(8)
         nav_layout.addStretch(1)
 
-        self.prev_btn = QPushButton("← Atrás", self)
+        self.prev_btn = QPushButton("Atrás", self)
         self.prev_btn.clicked.connect(self._prev_step)
         self.prev_btn.setVisible(False)
         nav_layout.addWidget(self.prev_btn)
 
-        self.next_btn = QPushButton("Siguiente →", self)
+        self.next_btn = QPushButton("Siguiente", self)
         self.next_btn.clicked.connect(self._next_step)
         nav_layout.addWidget(self.next_btn)
 
-        self.finish_btn = QPushButton("✓   Comenzar", self)
+        self.finish_btn = QPushButton("Comenzar", self)
         self.finish_btn.setObjectName("saveButton")
         self.finish_btn.clicked.connect(self._finish)
         self.finish_btn.setVisible(False)
@@ -186,10 +190,10 @@ class OnboardingDialog(QDialog):
         w.layout().addWidget(sub)
 
         steps = QLabel(
-            "  🎤  Hablas o capturas audio del sistema\n"
-            "  📝  Tu voz se transcribe en tiempo real\n"
-            "  🧠  La IA procesa el texto y genera una respuesta\n"
-            "  💬  El resultado aparece en pantalla",
+            "  Hablas o capturas audio del sistema\n"
+            "  Tu voz se transcribe en tiempo real\n"
+            "  La IA procesa el texto y genera una respuesta\n"
+            "  El resultado aparece en pantalla",
             w
         )
         steps.setWordWrap(True)
@@ -202,7 +206,7 @@ class OnboardingDialog(QDialog):
         return w
 
     # ------------------------------------------------------------------
-    # Paso 2: Configurar LLM
+    # Paso 2: Configurar IA
     # ------------------------------------------------------------------
 
     def _create_llm_config(self):
@@ -226,9 +230,9 @@ class OnboardingDialog(QDialog):
         form.addRow("Proveedor:", self.llm_provider_combo)
 
         self.api_key_input = QLineEdit(w)
-        self.api_key_input.setPlaceholderText("Pega tu API key aquí...")
+        self.api_key_input.setPlaceholderText("Pega tu clave de API aquí...")
         self.api_key_input.setText(self._existing_config.get("api_key", ""))
-        form.addRow("API Key:", self.api_key_input)
+        form.addRow("Clave de API:", self.api_key_input)
 
         self.api_link_btn = QPushButton("", w)
         self.api_link_btn.setObjectName("linkButton")
@@ -259,32 +263,32 @@ class OnboardingDialog(QDialog):
         if key == "google":
             self.api_link_btn.setText("Ir a Google AI Studio →")
             self.llm_instructions.setText(
-                "<b>¿No tienes API key?</b>\n\n"
+                "<b>¿No tienes clave de API?</b>\n\n"
                 "  1.  Arriba abre Google AI Studio\n"
                 "  2.  Inicia sesión con tu cuenta Google\n"
                 "  3.  Pulsa <b>Create API Key</b>\n"
                 "  4.  Copia y pega la clave arriba\n\n"
                 "Gratis, sin tarjeta de crédito."
             )
-            self.api_key_input.setPlaceholderText("AIz... tu key de Google")
+            self.api_key_input.setPlaceholderText("AIz... tu clave de Google")
 
         elif key == "groq":
             self.api_link_btn.setText("Ir a Groq Console →")
             self.llm_instructions.setText(
-                "<b>¿No tienes API key?</b>\n\n"
+                "<b>¿No tienes clave de API?</b>\n\n"
                 "  1.  Arriba abre Groq Console\n"
                 "  2.  Crea una cuenta gratuita\n"
                 "  3.  Ve a <b>API Keys</b> y genera una\n"
                 "  4.  Copia y pega la clave arriba\n\n"
                 "Acceso gratuito a modelos rápidos."
             )
-            self.api_key_input.setPlaceholderText("gsk_... tu key de Groq")
+            self.api_key_input.setPlaceholderText("gsk_... tu clave de Groq")
 
         elif key == "lm_studio":
             self.api_link_btn.setText("Descargar LM Studio →")
             self.llm_instructions.setText(
                 "<b>LM Studio corre en tu PC, sin internet.</b>\n"
-                "No necesitas API key.\n\n"
+                "No necesitas clave de API.\n\n"
                 "  1.  Descarga LM Studio del enlace\n"
                 "  2.  Instálalo y busca un modelo\n"
                 "  3.  Ve a la pestaña <b>Developer</b>\n"
@@ -296,10 +300,10 @@ class OnboardingDialog(QDialog):
             self.api_link_btn.setText("Buscar modelos GGUF →")
             self.llm_instructions.setText(
                 "<b>llama.cpp carga modelos locales.</b>\n"
-                "No necesitas API key ni internet.\n\n"
+                "No necesitas clave de API ni internet.\n\n"
                 "  1.  Descarga un modelo .gguf del enlace\n"
                 "  2.  Recomendado: gemma-3-1b-it (ligero)\n"
-                "  3.  En Configurar LLM selecciona el archivo\n\n"
+                "  3.  En Configurar la IA selecciona el archivo\n\n"
                 "También puedes usar el botón Descargar Modelo\n"
                 "en la configuración avanzada."
             )
@@ -334,7 +338,7 @@ class OnboardingDialog(QDialog):
 
         desc = QLabel(
             "<br><b>Google Cloud</b> — más preciso, necesita internet<br>"
-            "     y usa la misma API key que configuraste antes.\n\n"
+            "     y usa la misma clave de API que configuraste antes.\n\n"
             "<b>faster-whisper</b> — privado, sin internet. Descarga\n"
             "     automáticamente el modelo la primera vez (~75 MB).",
             w
@@ -364,21 +368,21 @@ class OnboardingDialog(QDialog):
         table_layout.setContentsMargins(0, 8, 0, 8)
 
         for action, description in HOTKEY_DESCRIPTIONS.items():
-            hotkey = DEFAULT_HOTKEYS.get(action, "")
+            hotkey = get_hotkey_display(action)
             row = QHBoxLayout()
             key_label = QLabel(hotkey)
             key_label.setObjectName("sectionLabel")
             key_label.setMinimumWidth(90)
             row.addWidget(key_label)
             desc_label = QLabel(description)
-            desc_label.setObjectName("statusLabel")
+            desc_label.setObjectName("metaLabel")
             row.addWidget(desc_label, 1)
             table_layout.addLayout(row)
 
         w.layout().addWidget(table)
 
         tip = QLabel(
-            "Puedes cambiarlos después en Configuración → Atajos de Teclado.",
+            "Puedes cambiarlos después en las preferencias (bandeja o icono de ajustes) → Atajos de teclado.",
             w
         )
         tip.setWordWrap(True)
@@ -398,9 +402,10 @@ class OnboardingDialog(QDialog):
         w.layout().addWidget(self.ready_summary)
 
         final = QLabel(
-            "\nPresiona <b>AltGr + G</b> para empezar a grabar.\n"
+            f"\nPresiona <b>{get_hotkey_display('toggle_record') or 'AltGr + G'}</b> "
+            "para empezar a grabar.\n"
             "Cambia cualquier ajuste desde el panel de configuración.\n\n"
-            "¡A disfrutar! 🚀",
+            "¡A disfrutar!",
             w
         )
         final.setWordWrap(True)
@@ -465,11 +470,13 @@ class OnboardingDialog(QDialog):
 
         lines = ["<b>Tu configuración:</b><br>", f"  IA: {llm_label}"]
         if has_key:
-            lines.append("  API Key: configurada ✓")
+            lines.append("  Clave de API: configurada")
         else:
-            lines.append("  API Key: (sin configurar)")
+            lines.append("  Clave de API: (sin configurar)")
         lines.append(f"  Voz: {stt_label}")
-        lines.append("  Atajos: AltGr+G, AltGr+\\, AltGr+H")
+        atajos = [d for k in ("toggle_record", "send_llm", "toggle_collapse")
+                  if (d := get_hotkey_display(k))]
+        lines.append("  Atajos: " + ", ".join(atajos))
 
         self.ready_summary.setText("<br>".join(lines))
 
@@ -503,23 +510,25 @@ class OnboardingDialog(QDialog):
         try:
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
-        except OSError as e:
-            print(f"Onboarding: error al guardar configuración: {e}")
+        except OSError:
+            logger.exception("Onboarding: error al guardar configuración")
             return
 
         try:
             get_llm_client().reload()
-        except Exception as e:
-            print(f"Onboarding: error al recargar LLM client: {e}")
+        except Exception:
+            logger.exception("Onboarding: error al recargar LLM client")
 
         if self._overlay_window and hasattr(self._overlay_window, "assistant"):
             try:
-                self._overlay_window.assistant.set_stt_settings(
+                started, was_running = self._overlay_window.assistant.set_stt_settings(
                     stt_provider,
                     self._existing_config.get("whisper_model", "tiny"),
                 )
-            except Exception as e:
-                print(f"Onboarding: error al actualizar STT: {e}")
+                if was_running and not started and hasattr(self._overlay_window, "_reset_recording_state"):
+                    self._overlay_window._reset_recording_state()
+            except Exception:
+                logger.exception("Onboarding: error al actualizar STT")
 
     # ------------------------------------------------------------------
     # Eventos

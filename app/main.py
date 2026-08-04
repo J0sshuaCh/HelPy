@@ -81,7 +81,7 @@ def main():
         QTimer.singleShot(200, _raise_overlay)
 
     print("HelPy listo.")
-    print("  - Presiona Esc para salir")
+    print("  - Presiona Esc para colapsar la ventana")
     print("  - Usa el icono en la bandeja del sistema para grabar/detener")
 
     if not overlay_window:

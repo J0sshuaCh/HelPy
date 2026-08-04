@@ -3,6 +3,7 @@
 venv/
 env/
 .agents
+.impeccable
 # Python bytecode / caches
 __pycache__/
 *.py[cod]
@@ -17,7 +18,8 @@ config.json
 .env.*
 !.env.example
 !.env.template
-
+PRODUCT.md
+DESIGN.md
 # Private keys / certificates / keystores
 *.pem
 *.key
@@ -42,6 +44,7 @@ id_ed25519
 
 # Logs
 *.log
+logs/
 
 # Local app artifacts (may contain personal data)
 recordings/

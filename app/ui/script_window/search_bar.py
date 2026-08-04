@@ -28,7 +28,7 @@ class SearchBar(QWidget):
         
         self.search_input = QLineEdit(self)
         self.search_input.setPlaceholderText("Buscar...")
-        self.search_input.setObjectName("deviceCombo")
+        self.search_input.setObjectName("searchInput")
         self.search_input.returnPressed.connect(self._find_next)
         self.search_input.textChanged.connect(self._on_text_changed)
         layout.addWidget(self.search_input, 1)
@@ -42,7 +42,7 @@ class SearchBar(QWidget):
         self.prev_btn.setObjectName("edgeButton")
         self.prev_btn.setIcon(get_icon("arrow_left"))
         self.prev_btn.setIconSize(QSize(14, 14))
-        self.prev_btn.setToolTip("Resultado anterior (Shift+Enter)")
+        self.prev_btn.setToolTip("Resultado anterior\nAtajo: Shift+Enter")
         self.prev_btn.clicked.connect(self._find_prev)
         layout.addWidget(self.prev_btn)
         
@@ -50,15 +50,15 @@ class SearchBar(QWidget):
         self.next_btn.setObjectName("edgeButton")
         self.next_btn.setIcon(get_icon("arrow_right"))
         self.next_btn.setIconSize(QSize(14, 14))
-        self.next_btn.setToolTip("Siguiente resultado (Enter)")
+        self.next_btn.setToolTip("Siguiente resultado\nAtajo: Enter")
         self.next_btn.clicked.connect(self._find_next)
         layout.addWidget(self.next_btn)
         
         self.close_btn = QPushButton("", self)
         self.close_btn.setObjectName("edgeButton")
-        self.close_btn.setIcon(get_icon("eye_off"))
+        self.close_btn.setIcon(get_icon("close"))
         self.close_btn.setIconSize(QSize(14, 14))
-        self.close_btn.setToolTip("Cerrar búsqueda (Escape)")
+        self.close_btn.setToolTip("Cerrar búsqueda\nAtajo: Escape")
         self.close_btn.clicked.connect(self.hide_bar)
         layout.addWidget(self.close_btn)
     
@@ -199,6 +199,8 @@ class SearchBar(QWidget):
         """Actualiza el label de coincidencias."""
         if self._total_matches > 0:
             self.match_label.setText(f"{self._current_match}/{self._total_matches}")
+        elif self.search_input.text():
+            self.match_label.setText("Sin resultados")
         else:
             self.match_label.setText("0/0")
     

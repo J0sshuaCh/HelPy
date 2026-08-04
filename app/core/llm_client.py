@@ -144,9 +144,9 @@ class LlmClient:
                 except: pass
                 time.sleep(1)
             
-            self._local_error = "Timeout: El servidor no respondio"
+            self._local_error = "El servidor local tardó demasiado en responder"
         except Exception as e:
-            self._local_error = f"Error al lanzar el subproceso: {e}"
+            self._local_error = f"No se pudo iniciar el servidor local: {e}"
 
     def set_context(self, text: str):
         self._context_text = text
@@ -159,9 +159,9 @@ class LlmClient:
 
     def _get_system_prompt(self) -> str:
         return (
-            "Eres un asistente virtual util, amigable y que responde en espanol de forma concisa."
+            "Eres un asistente virtual útil, amigable y que responde en español de forma concisa."
             if not self._context_text
-            else "Eres un asistente virtual que responde preguntas en espanol de forma concisa. Usa el contexto proporcionado como guia para mantener las respuestas relacionadas al tema, pero puedes usar tu propio conocimiento para responder."
+            else "Eres un asistente virtual que responde preguntas en español de forma concisa. Usa el contexto proporcionado como guía para mantener las respuestas relacionadas al tema, pero puedes usar tu propio conocimiento para responder."
         )
 
     def _build_cache_key(self, system_prompt: str, actual_prompt: str) -> tuple:
@@ -201,7 +201,7 @@ class LlmClient:
 
         if self.provider == "Local":
             if not self._inference_port:
-                return f"Error Local: {self._local_error or 'No inicializado'}"
+                return f"Modo local no disponible: {self._local_error or 'sin inicializar'}"
             try:
                 resp = requests.post(
                     f"http://127.0.0.1:{self._inference_port}/ask",
@@ -212,12 +212,12 @@ class LlmClient:
                     result = resp.json().get("response", "")
                     self._cache_set(cache_key, result)
                     return result
-                return "Error en servidor local"
+                return "El servidor local devolvió un error"
             except Exception as e:
-                return f"Error: {e}"
+                return f"No se pudo consultar el modelo local: {e}"
 
         if not self.client or not self.model_id:
-            return "Error: El cliente de IA no esta configurado."
+            return "La IA no está configurada. Ve a Configurar IA e indica el proveedor y el modelo."
 
         try:
             if self.provider in ("LM Studio", "Groq"):
@@ -240,9 +240,9 @@ class LlmClient:
                 result = getattr(response, "text", "")
                 self._cache_set(cache_key, result)
                 return result
-            return "Proveedor no soportado."
+            return "Este proveedor de IA no está soportado."
         except Exception as e:
-            return f"Error conectando con el proveedor de IA: {e}"
+            return f"No se pudo conectar con el proveedor de IA: {e}"
 
     def ask_stream(self, prompt: str):
         system_prompt = self._get_system_prompt()
@@ -256,7 +256,7 @@ class LlmClient:
 
         if self.provider == "Local":
             if not self._inference_port:
-                yield f"Error Local: {self._local_error or 'No inicializado'}"
+                yield f"Modo local no disponible: {self._local_error or 'sin inicializar'}"
                 return
             try:
                 resp = requests.post(
@@ -281,11 +281,11 @@ class LlmClient:
                 if full_response:
                     self._cache_set(cache_key, ''.join(full_response))
             except Exception as e:
-                yield f"Error: {e}"
+                yield f"No se pudo consultar el modelo local: {e}"
             return
 
         if not self.client or not self.model_id:
-            yield "Error: El cliente de IA no esta configurado."
+            yield "La IA no está configurada. Ve a Configurar IA e indica el proveedor y el modelo."
             return
 
         try:
@@ -321,9 +321,9 @@ class LlmClient:
                 if full_response:
                     self._cache_set(cache_key, ''.join(full_response))
             else:
-                yield "Streaming no soportado para este proveedor."
+                yield "Este proveedor no admite respuestas en vivo."
         except Exception as e:
-            yield f"Error conectando con el proveedor de IA: {e}"
+            yield f"No se pudo conectar con el proveedor de IA: {e}"
 
     def __del__(self):
         self._stop_inference_server()
@@ -341,5 +341,5 @@ def get_llm_client():
             _instance._context_text = ""
             _instance._inference_process = None
             _instance._inference_port = None
-            _instance._local_error = "Error de inicialización"
+            _instance._local_error = "No se pudo inicializar la IA"
     return _instance

@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QLabel, QGraphicsOpacityEffect
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 
 class ZoomManager:
     def __init__(self, window, initial_zoom=1.0):
@@ -24,8 +25,8 @@ class ZoomManager:
         if self.window.viewer_stack.currentWidget() != self.window.pdf_scroll:
             return
             
-        # Target width: container width minus scrollbar and margins
-        target_width = int((self.window.container.width() - 45) * self.zoom_factor)
+        viewport = self.window.pdf_scroll.viewport()
+        target_width = max(1, int(viewport.width() * self.zoom_factor))
         
         layout = self.window.pdf_scroll.pdf_layout
         for i in range(layout.count()):
@@ -43,8 +44,11 @@ class ZoomManager:
                     label.setGraphicsEffect(effect)
 
     def apply_text_zoom(self):
-        # Base size is 13px, apply zoom factor
-        new_size = max(8, int(13 * self.zoom_factor))
+        new_size = max(8, int(14 * self.zoom_factor))
         font = self.window.md_view.font()
         font.setPointSize(new_size)
         self.window.md_view.setFont(font)
+        doc = self.window.md_view.document()
+        doc_font = QFont("Segoe UI", new_size)
+        doc_font.setStyleHint(QFont.SansSerif)
+        doc.setDefaultFont(doc_font)
