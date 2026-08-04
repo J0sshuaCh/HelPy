@@ -1,6 +1,9 @@
 from PyQt5.QtWidgets import QWidget, QFrame, QVBoxLayout, QLabel, QSizePolicy
 from PyQt5.QtCore import Qt, QTimer, QRectF
 from PyQt5.QtGui import QPainter, QColor, QPen
+from app.ui.themes import PALETAS as _TEMA_PALETAS
+
+_DEFAULT_TEMA = _TEMA_PALETAS["Slate Minimalist (Clásico)"]
 
 
 class LoadingSpinner(QWidget):
@@ -9,7 +12,7 @@ class LoadingSpinner(QWidget):
         self._angle = 0
         self._line_width = line_width
         self._speed = speed
-        self._color = color or QColor("#60A5FA")
+        self._color = color or QColor(_DEFAULT_TEMA["resaltado"])
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._rotate)
         self._spinning = False
@@ -67,7 +70,12 @@ class SpinnerOverlay(QFrame):
     def __init__(self, parent=None, spinner_size=48, color=None):
         super().__init__(parent)
         self.setObjectName("spinnerOverlay")
-        self.setStyleSheet("background-color: rgba(0, 0, 0, 140); border-radius: 8px;")
+        # El overlay es solo señal visual: nunca debe bloquear la interacción con el panel
+        # (p. ej. poder pulsar "Cancelar envío" mientras la IA trabaja).
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self._scrim = _DEFAULT_TEMA["scrim"]
+        self._label_color = QColor(_DEFAULT_TEMA["texto"])
+        self._apply_styles()
         self.hide()
 
         layout = QVBoxLayout(self)
@@ -79,9 +87,22 @@ class SpinnerOverlay(QFrame):
 
         self.label = QLabel("", self)
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
+        self.label.setStyleSheet(
+            "color: %s; font-size: 14px; background: transparent;" % self._label_color.name())
         self.label.hide()
         layout.addWidget(self.label, 0, Qt.AlignCenter)
+
+    def _apply_styles(self):
+        self.setStyleSheet(
+            "background-color: %s; border-radius: 8px;" % self._scrim)
+
+    def set_theme(self, scrim, label_color):
+        self._scrim = scrim
+        self._label_color = QColor(label_color)
+        self._apply_styles()
+        self.label.setStyleSheet(
+            "color: %s; font-size: 14px; background: transparent;" % self._label_color.name())
+        self.update()
 
     def show_overlay(self, text=""):
         parent = self.parent()
