@@ -2,7 +2,10 @@ from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
 from PyQt5.QtCore import Qt, QSize, QTimer
 from PyQt5.QtWidgets import QApplication
 from app.ui.shared import get_icon
+from app.utils.logger import get_logger
 from datetime import datetime
+
+logger = get_logger(__name__)
 
 
 class TextDisplayPanel(QFrame):
@@ -14,7 +17,7 @@ class TextDisplayPanel(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(8)
         
-        self.transcription_label = QLabel("Transcripcion", self)
+        self.transcription_label = QLabel("Transcripción", self)
         self.transcription_label.setObjectName("sectionLabel")
         self.transcription_text = QTextEdit(self)
         self.transcription_text.setReadOnly(True)
@@ -24,7 +27,7 @@ class TextDisplayPanel(QFrame):
         llm_header_row = QHBoxLayout()
         llm_header_row.setContentsMargins(0, 0, 0, 0)
         llm_header_row.setSpacing(6)
-        self.llm_label = QLabel("Respuesta LLM", self)
+        self.llm_label = QLabel("Respuesta de IA", self)
         self.llm_label.setObjectName("sectionLabel")
         llm_header_row.addWidget(self.llm_label)
         llm_header_row.addStretch(1)
@@ -76,7 +79,7 @@ class TextDisplayPanel(QFrame):
         text = self.llm_text.toPlainText()
         if text:
             QApplication.clipboard().setText(text)
-            self.copy_llm_button.setToolTip("Copiado!")
+            self.copy_llm_button.setToolTip("Copiado")
             QTimer.singleShot(1500, lambda: self.copy_llm_button.setToolTip("Copiar respuesta al portapapeles"))
     
     def _export_conversation(self):
@@ -94,7 +97,7 @@ class TextDisplayPanel(QFrame):
             content += f"## Transcripción\n\n{transcription}\n\n"
         
         if llm_response:
-            content += f"## Respuesta IA\n\n{llm_response}\n"
+            content += f"## Respuesta de la IA\n\n{llm_response}\n"
         
         # Guardar archivo
         default_name = f"helpy_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -115,7 +118,7 @@ class TextDisplayPanel(QFrame):
             try:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(content)
-                self.export_button.setToolTip("Exportado!")
+                self.export_button.setToolTip("Exportado")
                 QTimer.singleShot(1500, lambda: self.export_button.setToolTip("Exportar conversación a archivo (.md/.txt)"))
-            except Exception as e:
-                print(f"Error al exportar: {e}")
+            except Exception:
+                logger.exception("Error al exportar la conversación")

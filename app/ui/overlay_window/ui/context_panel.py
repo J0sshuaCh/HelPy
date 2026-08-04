@@ -1,15 +1,23 @@
 import os
+import threading
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QFileDialog, QTextEdit, QApplication
+    QFileDialog, QTextEdit, QMessageBox
 )
+from PyQt5.QtCore import pyqtSignal
 
 from app.utils.text_extractor import extraer_texto
 from app.core.llm_client import get_llm_client
 from app.ui.shared.spinner import LoadingSpinner
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ContextPanel(QFrame):
+    context_loaded = pyqtSignal(str, str)  # (ruta, texto)
+    context_failed = pyqtSignal(bool)      # True = restauración silenciosa
+
     def __init__(self, settings, parent=None):
         super().__init__(parent)
         self.settings = settings
@@ -17,6 +25,9 @@ class ContextPanel(QFrame):
         self.setObjectName("contextGroup")
 
         self._collapsed = bool(settings.get("context_collapsed", True))
+        self._busy = False
+        self.context_loaded.connect(self._on_context_loaded)
+        self.context_failed.connect(self._on_context_failed)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -52,12 +63,12 @@ class ContextPanel(QFrame):
         body_layout.addLayout(btn_row)
 
         self.path_label = QLabel(self)
-        self.path_label.setObjectName("statusLabel")
+        self.path_label.setObjectName("metaLabel")
         self.path_label.setWordWrap(True)
         body_layout.addWidget(self.path_label)
 
         self.status_label = QLabel(self)
-        self.status_label.setObjectName("statusLabel")
+        self.status_label.setObjectName("metaLabel")
         body_layout.addWidget(self.status_label)
 
         self.preview = QTextEdit(self)
@@ -81,33 +92,54 @@ class ContextPanel(QFrame):
 
     def _restore_context(self):
         if self._context_path and os.path.exists(self._context_path):
-            try:
-                texto = extraer_texto(self._context_path)
-                get_llm_client().set_context(texto)
-                self._update_ui(self._context_path, texto)
-            except Exception:
-                self._context_path = ""
-                self.settings.set("context_path", "")
-                self._update_ui("", "")
+            self._extract_async(self._context_path, silent_failure=True)
 
-    def _blocking_task(self, task_fn, status_text="Procesando..."):
-        self.context_spinner.start()
-        self.load_btn.setEnabled(False)
-        self.clear_btn.setEnabled(False)
-        self.status_label.setText(status_text)
-        QApplication.processEvents()
-        try:
-            result = task_fn()
-            return result
-        except Exception as e:
-            self.status_label.setText(f"Error: {e}")
-            return None
-        finally:
+    def _extract_async(self, path: str, silent_failure: bool = False):
+        """Extrae el texto de un documento en un hilo para no congelar el overlay."""
+
+        def _worker():
+            try:
+                texto = extraer_texto(path)
+            except Exception:
+                logger.exception("Error al extraer el contexto")
+                self.context_failed.emit(silent_failure)
+            else:
+                self.context_loaded.emit(path, texto)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_context_loaded(self, path: str, texto: str):
+        self._context_path = path
+        self.settings.set("context_path", path)
+        get_llm_client().set_context(texto)
+        self._update_ui(path, texto)
+        self._set_busy(False)
+
+    def _on_context_failed(self, silent: bool):
+        if silent:
+            self._context_path = ""
+            self.settings.set("context_path", "")
+            self._update_ui("", "")
+        else:
+            self.status_label.setText(
+                "No se pudo cargar el documento. Verifica que el archivo no esté dañado "
+                "y que el formato sea compatible (.md, .pdf, .txt)."
+            )
+        self._set_busy(False)
+
+    def _set_busy(self, busy: bool):
+        self._busy = busy
+        self.load_btn.setEnabled(not busy)
+        self.clear_btn.setEnabled(not busy)
+        if busy:
+            self.context_spinner.start()
+        else:
             self.context_spinner.stop()
-            self.load_btn.setEnabled(True)
-            self.clear_btn.setEnabled(True)
 
     def _load_context(self):
+        if self._busy:
+            return
+
         start_dir = ""
         if self._context_path and os.path.exists(self._context_path):
             start_dir = os.path.dirname(self._context_path)
@@ -120,24 +152,27 @@ class ContextPanel(QFrame):
         if not path:
             return
 
-        def load():
-            return extraer_texto(path)
-
-        texto = self._blocking_task(load, "Cargando contexto...")
-        if texto is None:
-            return
-
-        self._context_path = path
-        self.settings.set("context_path", path)
-        get_llm_client().set_context(texto)
-        self._update_ui(path, texto)
+        self._set_busy(True)
+        self.status_label.setText("Cargando contexto...")
+        self._extract_async(path)
 
     def _clear_context(self):
-        def clear():
-            get_llm_client().clear_context()
-            return True
+        if self._busy:
+            return
+        if not self._context_path and not get_llm_client().has_context():
+            return
 
-        self._blocking_task(clear, "Limpiando contexto...")
+        reply = QMessageBox.question(
+            self,
+            "Limpiar contexto",
+            "Se eliminará el contexto cargado y dejará de usarse en las respuestas de la IA.\n\n¿Continuar?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        get_llm_client().clear_context()
         self._context_path = ""
         self.settings.set("context_path", "")
         self._update_ui("", "")
@@ -145,13 +180,13 @@ class ContextPanel(QFrame):
     def _update_ui(self, path: str, texto: str):
         if not path:
             self.path_label.setText("")
-            self.status_label.setText("Contexto: No cargado")
+            self.status_label.setText("Contexto: no cargado")
             self.preview.clear()
             return
 
         self.path_label.setText(path)
         chars = len(texto)
-        self.status_label.setText(f"Contexto: Documento cargado ({chars} caracteres)")
+        self.status_label.setText(f"Contexto: documento cargado ({chars} caracteres)")
         preview_text = texto[:200].strip()
         if len(texto) > 200:
             preview_text += "..."
