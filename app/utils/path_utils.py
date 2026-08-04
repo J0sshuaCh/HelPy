@@ -54,3 +54,12 @@ def writable_models_dir() -> str:
         path = _bundle_dir() / "models"
     path.mkdir(parents=True, exist_ok=True)
     return str(path)
+
+
+def writable_log_path() -> str:
+    if getattr(sys, 'frozen', False):
+        folder = _appdata_dir() / "logs"
+    else:
+        folder = _bundle_dir() / "logs"
+    folder.mkdir(parents=True, exist_ok=True)
+    return str(folder / "helpy.log")

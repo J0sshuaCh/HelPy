@@ -9,6 +9,10 @@ import soundcard as sc
 import sounddevice as sd
 import speech_recognition as sr
 
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class DualChannelTranscriber:
     def __init__(
@@ -79,12 +83,12 @@ class DualChannelTranscriber:
             try:
                 import webrtcvad
                 from faster_whisper import WhisperModel
-                print(f"[SISTEMA] Cargando modelo Whisper '{self.whisper_model_size}'...")
+                logger.info("[SISTEMA] Cargando modelo Whisper '%s'...", self.whisper_model_size)
                 self._vad = webrtcvad.Vad(3)
                 self._whisper_model = WhisperModel(self.whisper_model_size, device="cpu", compute_type="int8")
             except Exception as e:
-                print(f"[SISTEMA] Error cargando Whisper: {e}")
-                return False, [f"Error cargando Whisper: {e}"]
+                logger.exception("[SISTEMA] Error cargando Whisper")
+                return False, [f"No se pudo cargar el modelo de voz: {e}"]
         warnings = []
         started_any = False
         self._running = True
@@ -93,21 +97,21 @@ class DualChannelTranscriber:
             try:
                 self._start_mic()
                 started_any = True
-            except Exception as exc:
-                print(f"[YO] No se pudo iniciar microfono: {exc}")
-                warnings.append("No se pudo iniciar el microfono")
+            except Exception:
+                logger.exception("[YO] No se pudo iniciar micrófono")
+                warnings.append("No se pudo iniciar el micrófono")
 
         if self.capture_mode in ("system", "both"):
             try:
                 self._start_system()
                 started_any = True
-            except Exception as exc:
-                print(f"[SISTEMA] No se pudo iniciar audio del sistema: {exc}")
+            except Exception:
+                logger.exception("[SISTEMA] No se pudo iniciar audio del sistema")
                 warnings.append("No se pudo iniciar el audio del sistema")
 
         if not started_any:
             self._running = False
-            warnings.append("No se pudo iniciar ninguna fuente de audio")
+            warnings.append("No se pudo iniciar ninguna fuente de audio. Comprueba tus dispositivos.")
         return started_any, warnings
 
     def stop(self):
@@ -168,12 +172,12 @@ class DualChannelTranscriber:
         max_in = int(device_info.get("max_input_channels", 1))
         channels = 1 if max_in >= 1 else 0
         if channels == 0:
-            raise RuntimeError("El dispositivo de microfono no tiene canales de entrada")
+            raise RuntimeError("El dispositivo de micrófono no tiene canales de entrada")
 
         sample_rate = int(device_info.get("default_samplerate", 44100))
         bytes_per_sample = 2
 
-        print(f"[YO] Usando dispositivo {device_index} ({api_name}): {device_info.get('name')}")
+        logger.info("[YO] Usando dispositivo %s (%s): %s", device_index, api_name, device_info.get('name'))
 
         recognizer = sr.Recognizer()
         recognizer.dynamic_energy_threshold = self.mic_dynamic
@@ -189,7 +193,7 @@ class DualChannelTranscriber:
             frame_duration_ms = 30
             frame_size = int(sample_rate * (frame_duration_ms / 1000.0))
             
-            print(f"[YO] Usando dispositivo {device_index} ({api_name}): {device_info.get('name')} a {sample_rate}Hz (Whisper)")
+            logger.info("[YO] Usando dispositivo %s (%s): %s a %sHz (Whisper)", device_index, api_name, device_info.get('name'), sample_rate)
 
             def _callback(indata, frames, time_info, status):
                 if self._mic_stop_event.is_set(): return
@@ -234,8 +238,8 @@ class DualChannelTranscriber:
                                         segments, _ = self._whisper_model.transcribe(audio_np, language="es", beam_size=5)
                                         texto = " ".join([s.text for s in segments]).strip()
                                         if texto: self._append_text("YO", texto)
-                                    except Exception as e:
-                                        print(f"[YO] Error Whisper: {e}")
+                                    except Exception:
+                                        logger.exception("[YO] Error Whisper")
                                 speech_buffer = bytearray()
                                 is_speaking = False
                                 silence_frames = 0
@@ -297,7 +301,7 @@ class DualChannelTranscriber:
                         ambient_rms = np.sqrt(np.mean(arr ** 2))
                         threshold = max(ambient_rms * 2.0, 50.0)
                         recognizer.energy_threshold = threshold
-                        print(f"[YO] Umbral de ruido ajustado: {threshold:.1f}")
+                        logger.info("[YO] Umbral de ruido ajustado: %.1f", threshold)
                         ambient_buf = bytearray()
                         ambient_ready = True
                     continue
@@ -320,8 +324,8 @@ class DualChannelTranscriber:
                                     self._append_text("YO", texto)
                             except sr.UnknownValueError:
                                 pass
-                            except sr.RequestError as e:
-                                print(f"[YO] Error de red: {e}")
+                            except sr.RequestError:
+                                logger.exception("[YO] Error de red")
                             speech_buffer = bytearray()
                             in_speech = False
                             phrase_start = time.time()
@@ -338,8 +342,8 @@ class DualChannelTranscriber:
                                         self._append_text("YO", texto)
                                 except sr.UnknownValueError:
                                     pass
-                                except sr.RequestError as e:
-                                    print(f"[YO] Error de red: {e}")
+                                except sr.RequestError:
+                                    logger.exception("[YO] Error de red")
                             speech_buffer = bytearray()
                             in_speech = False
                             silence_start = 0.0
@@ -410,7 +414,7 @@ class DualChannelTranscriber:
             
             # Obtener el micrófono de loopback para ese altavoz
             mic = sc.get_microphone(speaker.name, include_loopback=True)
-            print(f"[SISTEMA] Capturando loopback de: {speaker.name}")
+            logger.info("[SISTEMA] Capturando loopback de: %s", speaker.name)
         except Exception as e:
             raise RuntimeError(f"No se pudo inicializar soundcard para loopback: {e}")
 
@@ -445,8 +449,9 @@ class DualChannelTranscriber:
                                     segments, _ = self._whisper_model.transcribe(audio_np, language="es", beam_size=5)
                                     texto = " ".join([s.text for s in segments]).strip()
                                     if texto: self._append_text("SISTEMA", texto)
-                            except Exception as e:
-                                if not self._sys_stop_event.is_set(): print(f"[SISTEMA] Error en captura: {e}")
+                            except Exception:
+                                if not self._sys_stop_event.is_set():
+                                    logger.exception("[SISTEMA] Error en captura")
                                 break
                 finally:
                     ctypes.windll.ole32.CoUninitialize()
@@ -476,12 +481,12 @@ class DualChannelTranscriber:
                                     self._append_text("SISTEMA", texto)
                             except sr.UnknownValueError:
                                 pass
-                            except sr.RequestError as e:
-                                print(f"[SISTEMA] Error de red: {e}")
+                            except sr.RequestError:
+                                logger.exception("[SISTEMA] Error de red")
                                 
-                        except Exception as e:
+                        except Exception:
                             if not self._sys_stop_event.is_set():
-                                print(f"[SISTEMA] Error en captura: {e}")
+                                logger.exception("[SISTEMA] Error en captura")
                             break
             finally:
                 ctypes.windll.ole32.CoUninitialize()
