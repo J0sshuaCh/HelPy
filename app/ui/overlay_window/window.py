@@ -24,6 +24,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
     llm_error_received = pyqtSignal(str)
     llm_busy_changed = pyqtSignal(bool)
     overlay_requested = pyqtSignal(bool, str)
+    audio_level_received = pyqtSignal(float)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -77,6 +78,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.llm_error_received.connect(self._set_llm_error_safe)
         self.llm_busy_changed.connect(self._set_llm_busy_safe)
         self.overlay_requested.connect(self._set_overlay_safe)
+        self.audio_level_received.connect(self._set_audio_level_safe)
 
         self._init_ui()
         
@@ -230,6 +232,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.header_area.compact_button.setChecked(self.compact_mode)
         self.position_bar.reload_icons()
         self.capture_panel.reload_icons()
+        self.text_display.reload_icons()
         self.recording_panel.refresh_hotkey_tooltips()
         self.header_area.refresh_hotkey_tooltips()
         if hasattr(self, "preferences_dialog"):
@@ -349,6 +352,7 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.context_panel.setVisible(not is_compact)
         self.text_display.transcription_label.setVisible(not is_compact)
         self.text_display.transcription_text.setVisible(not is_compact)
+        self.text_display.copy_transcription_button.setVisible(not is_compact)
 
         # En compacto, el panel de grabación queda como franja mínima: el botón
         # Grabar/Detener siempre a la vista y, mientras se graba, VU + Enviar.
@@ -405,6 +409,9 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         return reply == QMessageBox.Yes
 
     def _do_shutdown(self):
+        if getattr(self, "_is_shutting_down", False):
+            return
+        self._is_shutting_down = True
         self.assistant.cleanup()
         self.tray_manager.hide()
         self.hotkey_manager.stop()
@@ -555,6 +562,9 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
         self.status_changed.emit(msg)
 
     def _on_audio_level(self, level: float):
+        self.audio_level_received.emit(level)
+
+    def _set_audio_level_safe(self, level: float):
         self.recording_panel.vu_meter.set_level(level)
 
     def _set_transcription_safe(self, text: str):
@@ -615,6 +625,17 @@ class OverlayWindow(AnimatedCollapseMixin, DragMixin, QWidget):
             return
         if event.key() == Qt.Key_Space and event.modifiers() & Qt.ControlModifier:
             self.toggle_recording()
+            return
+        if event.modifiers() == (Qt.ControlModifier | Qt.ShiftModifier):
+            if event.key() == Qt.Key_T:
+                self.text_display._copy_transcription_text()
+                return
+            elif event.key() == Qt.Key_L:
+                self.text_display._copy_llm_text()
+                return
+            elif event.key() == Qt.Key_E:
+                self.text_display._export_conversation()
+                return
         super().keyPressEvent(event)
 
     def closeEvent(self, event):

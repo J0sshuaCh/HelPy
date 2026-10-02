@@ -37,6 +37,7 @@ class ContextPanel(QFrame):
         self.toggle_button.setObjectName("sectionToggle")
         self.toggle_button.setFixedWidth(120)
         self.toggle_button.setToolTip("Mostrar/ocultar panel de contexto para documentos de referencia")
+        self.toggle_button.setAccessibleName("Panel de documento de contexto")
         self.toggle_button.clicked.connect(self._toggle)
         layout.addWidget(self.toggle_button)
 
@@ -50,11 +51,13 @@ class ContextPanel(QFrame):
         btn_row.setContentsMargins(0, 0, 0, 0)
         self.load_btn = QPushButton("Cargar Contexto", self)
         self.load_btn.setToolTip("Cargar documento (.md, .pdf, .txt) como contexto para la IA")
+        self.load_btn.setAccessibleName("Cargar documento de contexto")
         self.load_btn.clicked.connect(self._load_context)
         self.context_spinner = LoadingSpinner(self, size=14, line_width=2, speed=40)
         self.context_spinner.hide()
         self.clear_btn = QPushButton("Limpiar", self)
         self.clear_btn.setToolTip("Eliminar el contexto cargado")
+        self.clear_btn.setAccessibleName("Limpiar contexto cargado")
         self.clear_btn.clicked.connect(self._clear_context)
         btn_row.addWidget(self.load_btn)
         btn_row.addWidget(self.context_spinner)
@@ -74,6 +77,7 @@ class ContextPanel(QFrame):
         self.preview = QTextEdit(self)
         self.preview.setReadOnly(True)
         self.preview.setObjectName("textArea")
+        self.preview.setAccessibleName("Vista previa del contexto cargado")
         self.preview.setMaximumHeight(60)
         body_layout.addWidget(self.preview)
 
@@ -89,6 +93,9 @@ class ContextPanel(QFrame):
 
     def _apply_visibility(self):
         self.body.setVisible(not self._collapsed)
+        win = self.window()
+        if win and hasattr(win, "adjustSize"):
+            win.adjustSize()
 
     def _restore_context(self):
         if self._context_path and os.path.exists(self._context_path):

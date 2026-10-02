@@ -49,6 +49,7 @@ class PreferencesDialog(DragMixin, QWidget):
         self.close_btn.setIcon(get_icon("close"))
         self.close_btn.setIconSize(QSize(14, 14))
         self.close_btn.setToolTip("Cerrar las preferencias")
+        self.close_btn.setAccessibleName("Cerrar preferencias")
         self.close_btn.clicked.connect(self.close)
         header_row.addWidget(self.close_btn)
         outer.addLayout(header_row)
@@ -202,3 +203,9 @@ class PreferencesDialog(DragMixin, QWidget):
         if overlay and hasattr(overlay, "_show_onboarding"):
             self.close()
             overlay._show_onboarding()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(event)

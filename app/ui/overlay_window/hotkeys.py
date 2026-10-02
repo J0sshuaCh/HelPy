@@ -1,4 +1,5 @@
 from pynput import keyboard
+from PyQt5.QtCore import QTimer
 from app.ui.shared import ui_settings
 from app.ui.shared.hotkeys_display import format_hotkey
 from app.utils.logger import get_logger
@@ -51,13 +52,13 @@ class HotkeyManager:
 
     def init_hotkeys(self, clear_custom=False):
         def on_activate():
-            self.window.assistant.send_buffer_to_llm()
+            QTimer.singleShot(0, self.window.assistant.send_buffer_to_llm)
 
         def on_toggle_record():
-            self.window.toggle_recording()
+            QTimer.singleShot(0, self.window.toggle_recording)
 
         def on_toggle_collapse():
-            self.window.toggle_collapsed()
+            QTimer.singleShot(0, self.window.toggle_collapsed)
 
         hotkey_map = {
             self._get_hotkey("send_llm"): on_activate,

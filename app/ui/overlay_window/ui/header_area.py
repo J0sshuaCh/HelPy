@@ -26,6 +26,7 @@ class HeaderArea(QFrame):
         self.capture_button.setIcon(get_icon("eye_off"))
         self.capture_button.setIconSize(QSize(14, 14))
         self.capture_button.setToolTip("Mostrar/ocultar ventana en capturas de pantalla")
+        self.capture_button.setAccessibleName("Visibilidad en captura de pantalla")
         
         self.compact_button = QPushButton("", self)
         self.compact_button.setObjectName("edgeButton")
@@ -33,18 +34,21 @@ class HeaderArea(QFrame):
         self.compact_button.setIcon(get_icon("panels"))
         self.compact_button.setIconSize(QSize(14, 14))
         self.compact_button.setToolTip("Modo compacto/expandido\nAlterna mostrar todo o solo respuesta")
+        self.compact_button.setAccessibleName("Alternar modo compacto")
 
         self.settings_button = QPushButton("", self)
         self.settings_button.setObjectName("edgeButton")
         self.settings_button.setIcon(get_icon("settings"))
         self.settings_button.setIconSize(QSize(14, 14))
         self.settings_button.setToolTip("Abrir las preferencias")
+        self.settings_button.setAccessibleName("Abrir preferencias de configuración")
         
         self.edge_button = QPushButton("", self)
         self.edge_button.setObjectName("edgeButton")
         self.edge_button.setIcon(get_icon("collapse"))
         self.edge_button.setIconSize(QSize(14, 14))
         self.edge_button.setToolTip(self._edge_tooltip())
+        self.edge_button.setAccessibleName("Colapsar o expandir ventana")
         
         self.layout.addWidget(self.logo_label)
         self.layout.addWidget(self.title_label)
@@ -71,7 +75,8 @@ class HeaderArea(QFrame):
 
     def refresh_icons(self):
         """Recarga todos los iconos (tras cambio de tema)."""
-        self.capture_button.setIcon(get_icon("eye_off"))
+        is_cap_visible = getattr(self.parent(), "capture_visible", False)
+        self.capture_button.setIcon(get_icon("eye" if is_cap_visible else "eye_off"))
         self.compact_button.setIcon(get_icon("panels"))
         self.settings_button.setIcon(get_icon("settings"))
         icon_name = "expand" if getattr(self.parent(), "is_collapsed", False) else "collapse"
