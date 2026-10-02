@@ -204,7 +204,7 @@ class DualChannelTranscriber:
                 # Emitir nivel de audio para VU meter
                 if self.on_audio_level:
                     rms = np.sqrt(np.mean(audio.astype(np.float64) ** 2))
-                    level = min(1.0, rms / 0.5)
+                    level = min(1.0, rms / 5000.0)
                     self.on_audio_level(level)
 
             def _worker():
@@ -434,14 +434,26 @@ class DualChannelTranscriber:
             # Solucion al error 0x800401f0 (CoInitialize no llamado)
             ctypes.windll.ole32.CoInitialize(None)
             
+            sub_frames = int(sample_rate * 0.5)
+
             if self.stt_provider == "whisper":
                 try:
                     with mic.recorder(samplerate=sample_rate) as recorder:
+                        accumulated = []
+                        total_frames = 0
+                        target_frames = sample_rate * 3
                         while not self._sys_stop_event.is_set():
                             try:
-                                # 3 seconds latency chunk for system
-                                data = recorder.record(numframes=sample_rate * 3)
-                                if data.ndim > 1: data = np.mean(data, axis=1)
+                                sub_data = recorder.record(numframes=sub_frames)
+                                accumulated.append(sub_data)
+                                total_frames += len(sub_data)
+                                if total_frames < target_frames:
+                                    continue
+                                data = np.concatenate(accumulated, axis=0)
+                                accumulated = []
+                                total_frames = 0
+                                if data.ndim > 1:
+                                    data = np.mean(data, axis=1)
                                 audio_np = data.astype(np.float32)
                                 
                                 rms = np.sqrt(np.mean(audio_np ** 2))
@@ -460,10 +472,18 @@ class DualChannelTranscriber:
 
             try:
                 with mic.recorder(samplerate=sample_rate) as recorder:
+                    accumulated = []
+                    total_frames = 0
                     while not self._sys_stop_event.is_set():
                         try:
-                            # soundcard devuelve float32 [-1.0, 1.0]
-                            data = recorder.record(numframes=chunk_frames)
+                            sub_data = recorder.record(numframes=sub_frames)
+                            accumulated.append(sub_data)
+                            total_frames += len(sub_data)
+                            if total_frames < chunk_frames:
+                                continue
+                            data = np.concatenate(accumulated, axis=0)
+                            accumulated = []
+                            total_frames = 0
                             
                             # Convertir a mono si es necesario
                             if data.ndim > 1:

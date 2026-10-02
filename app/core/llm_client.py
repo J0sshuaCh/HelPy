@@ -342,4 +342,6 @@ def get_llm_client():
             _instance._inference_process = None
             _instance._inference_port = None
             _instance._local_error = "No se pudo inicializar la IA"
+            _instance._cache = OrderedDict()
+            _instance._cache_maxsize = 200
     return _instance

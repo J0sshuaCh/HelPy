@@ -64,6 +64,7 @@ def main():
     overlay_window = _try_create_overlay_window()
     if overlay_window:
         windows.append(overlay_window)
+        app.aboutToQuit.connect(overlay_window._do_shutdown)
 
     def _raise_overlay():
         if overlay_window:
