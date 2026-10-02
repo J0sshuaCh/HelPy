@@ -42,6 +42,8 @@ hiddenimports = [
     "httpx",
     "httpcore",
     "ssl",
+    "faster_whisper",
+    "ctranslate2",
 ]
 
 # 1. Análisis para HelPy (Main App)
