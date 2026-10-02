@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-10-02
+
+### Fixed
+- **Pipeline de Release en CI (Windows Server 2025)**: fijación del runner a `windows-2022` en el workflow de GitHub Actions para evitar fallos por violación de acceso (`0xC0000005`) causados por `onnxruntime` en la imagen Windows Server 2025.
+- **Empaquetado de dependencias de transcripción**: adición explícita de `faster_whisper` y `ctranslate2` en los `hiddenimports` de `helpy.spec` para garantizar la correcta recolección del motor STT en PyInstaller.
+
 ## [0.7.5] - 2026-10-02
 
 ### Added
