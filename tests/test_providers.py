@@ -39,9 +39,6 @@ def _save_config() -> str:
     global _original_config
     _original_config = CONFIG_PATH.read_text(encoding="utf-8") if CONFIG_PATH.exists() else ""
     return _original_config
-    if CONFIG_PATH.exists():
-        return CONFIG_PATH.read_text(encoding="utf-8")
-    return ""
 
 
 def _restore_config(content: str):
