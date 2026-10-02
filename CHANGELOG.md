@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-10-02
+
 ### Added
 - **Accesibilidad universal (A11y)**: soporte para lectores de pantalla con `setAccessibleName` en todos los controles interactivos clave (overlay, teleprompter, preferencias y onboarding).
 - **Indicador de foco accesible**: realce visual de foco (`2px solid`) en botones, campos de texto y soporte de teclado para deslizadores (`QSlider::handle:focus`).
