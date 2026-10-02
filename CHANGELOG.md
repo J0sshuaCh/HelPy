@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+- **Accesibilidad universal (A11y)**: soporte para lectores de pantalla con `setAccessibleName` en todos los controles interactivos clave (overlay, teleprompter, preferencias y onboarding).
+- **Indicador de foco accesible**: realce visual de foco (`2px solid`) en botones, campos de texto y soporte de teclado para deslizadores (`QSlider::handle:focus`).
+- **Atajos rápidos de portapapeles**: `Ctrl + Shift + T` para copiar transcripción, `Ctrl + Shift + L` para copiar respuesta del modelo y `Ctrl + Shift + E` para exportar a archivo.
+- **Pruebas de regresión automatizadas**: cobertura ampliada con 12 tests unitarios pasando exitosamente para accesibilidad, búsqueda y seguridad de hilos.
+
+### Changed
+- **Búsqueda no destructiva en guiones**: implementación de `QTextEdit.ExtraSelection` en la barra de búsqueda para preservar el formato Markdown y HTML (encabezados, negritas, cursivas, colores).
+- **Reducción de latencia en loopback**: fragmentación de lectura en sub-bloques de 500 ms en `DualChannelTranscriber`, reduciendo el tiempo de detención de hasta 6s a <500 ms.
+
+### Fixed
+- **Seguridad de hilos en vúmetro**: comunicación mediante señal `audio_level_received` (`pyqtSignal`) para canalizar actualizaciones del vúmetro estrictamente por el hilo principal de Qt.
+- **Normalización de nivel de audio**: corrección de la fórmula RMS para muestras `int16` en Whisper, evitando la saturación permanente al 100%.
+- **Despacho seguro de atajos**: invocación en el bucle de eventos de Qt (`QTimer.singleShot`) para atajos globales de `pynput`.
+- **Cierre de preferencias con Escape**: soporte para cerrar el diálogo de preferencias al presionar `Escape`.
+- **Sincronización de iconos**: corrección del icono de captura en `refresh_icons()` para reflejar el estado real `capture_visible`.
+- **Ajuste de geometría en panel de contexto**: auto-ajuste de altura vertical (`adjustSize()`) al alternar la visibilidad de contexto.
+- **Apagado limpio e idempotente**: bandera de control en `_do_shutdown` y parada garantizada de autoscroll al cerrar la ventana de guion.
+
 ## [0.7.0] - 2026-08-04
 
 ### Added
