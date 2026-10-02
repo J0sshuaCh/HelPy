@@ -54,6 +54,7 @@ class ShortcutsDialog(DragMixin, QWidget):
         close_btn.setIcon(get_icon("close"))
         close_btn.setIconSize(QSize(14, 14))
         close_btn.setToolTip("Cerrar")
+        close_btn.setAccessibleName("Cerrar atajos de teclado")
         close_btn.clicked.connect(self.close)
         header_row.addWidget(close_btn)
         outer.addLayout(header_row)

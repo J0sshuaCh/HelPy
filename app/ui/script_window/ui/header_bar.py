@@ -26,6 +26,7 @@ class HeaderBar:
         window.capture_button.setObjectName("edgeButton")
         window.capture_button.setIconSize(QSize(14, 14))
         window.capture_button.setToolTip("Mostrar/ocultar en capturas\nAtajo: Ctrl + Shift + C")
+        window.capture_button.setAccessibleName("Visibilidad del guion en captura de pantalla")
         window.capture_button.clicked.connect(window.toggle_capture_visibility)
 
         window.panel_toggle_button = QPushButton("", window)
@@ -33,6 +34,7 @@ class HeaderBar:
         window.panel_toggle_button.setIcon(get_icon("panels"))
         window.panel_toggle_button.setIconSize(QSize(14, 14))
         window.panel_toggle_button.setToolTip("Mostrar/ocultar controles\nAtajo: Ctrl + P")
+        window.panel_toggle_button.setAccessibleName("Mostrar u ocultar controles del guion")
         window.panel_toggle_button.clicked.connect(window._toggle_control_panel)
 
         window.help_button = QPushButton("", window)
@@ -40,12 +42,14 @@ class HeaderBar:
         window.help_button.setIcon(get_icon("help"))
         window.help_button.setIconSize(QSize(14, 14))
         window.help_button.setToolTip("Mostrar atajos de teclado\nAtajo: ?")
+        window.help_button.setAccessibleName("Mostrar atajos de teclado del guion")
         window.help_button.clicked.connect(window._show_shortcuts)
 
         window.edge_button = QPushButton("", window)
         window.edge_button.setObjectName("edgeButton")
         window.edge_button.setIconSize(QSize(14, 14))
         window.edge_button.setToolTip("Colapsar/expandir panel\nAtajo: Ctrl + H")
+        window.edge_button.setAccessibleName("Colapsar o expandir panel del guion")
         window.edge_button.clicked.connect(window.toggle_collapsed)
 
         header_row.addWidget(window.capture_button, 0)

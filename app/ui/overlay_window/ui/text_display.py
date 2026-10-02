@@ -17,11 +17,27 @@ class TextDisplayPanel(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(8)
         
+        transcription_header_row = QHBoxLayout()
+        transcription_header_row.setContentsMargins(0, 0, 0, 0)
+        transcription_header_row.setSpacing(6)
         self.transcription_label = QLabel("Transcripción", self)
         self.transcription_label.setObjectName("sectionLabel")
+        transcription_header_row.addWidget(self.transcription_label)
+        transcription_header_row.addStretch(1)
+
+        self.copy_transcription_button = QPushButton("", self)
+        self.copy_transcription_button.setObjectName("edgeButton")
+        self.copy_transcription_button.setIcon(get_icon("copy"))
+        self.copy_transcription_button.setIconSize(QSize(14, 14))
+        self.copy_transcription_button.setToolTip("Copiar transcripción al portapapeles\nAtajo: Ctrl + Shift + T")
+        self.copy_transcription_button.setAccessibleName("Copiar transcripción al portapapeles")
+        self.copy_transcription_button.clicked.connect(self._copy_transcription_text)
+        transcription_header_row.addWidget(self.copy_transcription_button)
+
         self.transcription_text = QTextEdit(self)
         self.transcription_text.setReadOnly(True)
         self.transcription_text.setObjectName("textArea")
+        self.transcription_text.setAccessibleName("Texto de transcripción de voz")
         self.transcription_text.setMaximumHeight(85)  # Aprox 4 lineas
         
         llm_header_row = QHBoxLayout()
@@ -36,7 +52,8 @@ class TextDisplayPanel(QFrame):
         self.copy_llm_button.setObjectName("edgeButton")
         self.copy_llm_button.setIcon(get_icon("copy"))
         self.copy_llm_button.setIconSize(QSize(14, 14))
-        self.copy_llm_button.setToolTip("Copiar respuesta al portapapeles")
+        self.copy_llm_button.setToolTip("Copiar respuesta al portapapeles\nAtajo: Ctrl + Shift + L")
+        self.copy_llm_button.setAccessibleName("Copiar respuesta de la IA al portapapeles")
         self.copy_llm_button.clicked.connect(self._copy_llm_text)
         llm_header_row.addWidget(self.copy_llm_button)
         
@@ -44,13 +61,15 @@ class TextDisplayPanel(QFrame):
         self.export_button.setObjectName("edgeButton")
         self.export_button.setIcon(get_icon("download"))
         self.export_button.setIconSize(QSize(14, 14))
-        self.export_button.setToolTip("Exportar conversación a archivo (.md/.txt)")
+        self.export_button.setToolTip("Exportar conversación a archivo (.md/.txt)\nAtajo: Ctrl + Shift + E")
+        self.export_button.setAccessibleName("Exportar conversación a archivo")
         self.export_button.clicked.connect(self._export_conversation)
         llm_header_row.addWidget(self.export_button)
         
         self.llm_text = QTextEdit(self)
         self.llm_text.setReadOnly(True)
         self.llm_text.setObjectName("textArea")
+        self.llm_text.setAccessibleName("Texto de respuesta de la IA")
         self.llm_min_height = 60
         self.llm_max_height = 260
         self.llm_text.setMinimumHeight(self.llm_min_height)
@@ -59,7 +78,7 @@ class TextDisplayPanel(QFrame):
         # Auto-scroll inteligente: detectar cuando el usuario scrollea arriba
         self.llm_text.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
         
-        self.layout.addWidget(self.transcription_label)
+        self.layout.addLayout(transcription_header_row)
         self.layout.addWidget(self.transcription_text)
         self.layout.addLayout(llm_header_row)
         self.layout.addWidget(self.llm_text)
@@ -81,6 +100,13 @@ class TextDisplayPanel(QFrame):
             QApplication.clipboard().setText(text)
             self.copy_llm_button.setToolTip("Copiado")
             QTimer.singleShot(1500, lambda: self.copy_llm_button.setToolTip("Copiar respuesta al portapapeles"))
+
+    def _copy_transcription_text(self):
+        text = self.transcription_text.toPlainText()
+        if text.strip():
+            QApplication.clipboard().setText(text)
+            self.copy_transcription_button.setToolTip("¡Copiado!")
+            QTimer.singleShot(1500, lambda: self.copy_transcription_button.setToolTip("Copiar transcripción al portapapeles"))
     
     def _export_conversation(self):
         transcription = self.transcription_text.toPlainText().strip()
@@ -122,3 +148,8 @@ class TextDisplayPanel(QFrame):
                 QTimer.singleShot(1500, lambda: self.export_button.setToolTip("Exportar conversación a archivo (.md/.txt)"))
             except Exception:
                 logger.exception("Error al exportar la conversación")
+
+    def reload_icons(self):
+        self.copy_transcription_button.setIcon(get_icon("copy"))
+        self.copy_llm_button.setIcon(get_icon("copy"))
+        self.export_button.setIcon(get_icon("download"))

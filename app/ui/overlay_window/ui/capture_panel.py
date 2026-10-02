@@ -16,6 +16,7 @@ class CapturePanel(QWidget):
         self.toggle_button = QPushButton("Fuente", self)
         self.toggle_button.setObjectName("sectionToggle")
         self.toggle_button.setToolTip("Modo de captura de audio: micrófono, sistema o ambos")
+        self.toggle_button.setAccessibleName("Panel de fuentes de captura")
         self.toggle_button.clicked.connect(self._toggle)
         outer.addWidget(self.toggle_button)
 
@@ -38,6 +39,7 @@ class CapturePanel(QWidget):
         self.capture_mic_btn.setIcon(get_icon("mic"))
         self.capture_mic_btn.setIconSize(QSize(16, 16))
         self.capture_mic_btn.setToolTip("Solo micrófono")
+        self.capture_mic_btn.setAccessibleName("Modo de captura solo micrófono")
 
         self.capture_sys_btn = QPushButton("Sistema", self)
         self.capture_sys_btn.setObjectName("modeButton")
@@ -45,6 +47,7 @@ class CapturePanel(QWidget):
         self.capture_sys_btn.setIcon(get_icon("monitor"))
         self.capture_sys_btn.setIconSize(QSize(16, 16))
         self.capture_sys_btn.setToolTip("Solo audio del sistema")
+        self.capture_sys_btn.setAccessibleName("Modo de captura solo audio del sistema")
 
         self.capture_both_btn = QPushButton("Ambos", self)
         self.capture_both_btn.setObjectName("modeButton")
@@ -52,6 +55,7 @@ class CapturePanel(QWidget):
         self.capture_both_btn.setIcon(get_icon("mic_monitor"))
         self.capture_both_btn.setIconSize(QSize(16, 16))
         self.capture_both_btn.setToolTip("Micrófono y sistema")
+        self.capture_both_btn.setAccessibleName("Modo de captura micrófono y sistema simultáneo")
 
         for btn in (self.capture_mic_btn, self.capture_sys_btn, self.capture_both_btn):
             self.capture_mode_group.addButton(btn)
@@ -64,16 +68,19 @@ class CapturePanel(QWidget):
         self.mic_combo = QComboBox(self)
         self.mic_combo.setObjectName("deviceCombo")
         self.mic_combo.setToolTip("Seleccionar dispositivo de micrófono de entrada")
+        self.mic_combo.setAccessibleName("Dispositivo de micrófono de entrada")
 
         self.sys_combo = QComboBox(self)
         self.sys_combo.setObjectName("deviceCombo")
         self.sys_combo.setToolTip("Seleccionar salida de audio del sistema (loopback)")
+        self.sys_combo.setAccessibleName("Dispositivo de audio del sistema")
 
         self.refresh_button = QPushButton("", self)
         self.refresh_button.setObjectName("edgeButton")
         self.refresh_button.setIcon(get_icon("refresh"))
         self.refresh_button.setIconSize(QSize(14, 14))
         self.refresh_button.setToolTip("Actualizar dispositivos")
+        self.refresh_button.setAccessibleName("Actualizar dispositivos de audio")
 
         device_row.addWidget(self.mic_combo, 1)
         device_row.addWidget(self.sys_combo, 1)

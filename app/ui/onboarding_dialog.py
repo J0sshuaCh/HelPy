@@ -141,16 +141,19 @@ class OnboardingDialog(DragMixin, QDialog):
         nav_layout.addStretch(1)
 
         self.prev_btn = QPushButton("Atrás", self)
+        self.prev_btn.setAccessibleName("Paso anterior")
         self.prev_btn.clicked.connect(self._prev_step)
         self.prev_btn.setVisible(False)
         nav_layout.addWidget(self.prev_btn)
 
         self.next_btn = QPushButton("Siguiente", self)
+        self.next_btn.setAccessibleName("Paso siguiente")
         self.next_btn.clicked.connect(self._next_step)
         nav_layout.addWidget(self.next_btn)
 
         self.finish_btn = QPushButton("Comenzar", self)
         self.finish_btn.setObjectName("saveButton")
+        self.finish_btn.setAccessibleName("Comenzar a usar HelPy")
         self.finish_btn.clicked.connect(self._finish)
         self.finish_btn.setVisible(False)
         nav_layout.addWidget(self.finish_btn)
@@ -161,6 +164,7 @@ class OnboardingDialog(DragMixin, QDialog):
         skip_layout.addStretch(1)
         self.skip_btn = QPushButton("Saltar guía", self)
         self.skip_btn.setObjectName("linkButton")
+        self.skip_btn.setAccessibleName("Saltar guía de bienvenida")
         self.skip_btn.setFlat(True)
         self.skip_btn.clicked.connect(self.accept)
         skip_layout.addWidget(self.skip_btn)

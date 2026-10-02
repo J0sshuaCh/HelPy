@@ -13,13 +13,17 @@ class RecordingPanel(QWidget):
         
         self.record_button = QPushButton("Grabar", self)
         self.record_button.setObjectName("recordButton")
+        self.record_button.setAccessibleName("Iniciar o detener grabación de audio")
         self.send_button = QPushButton("Enviar a IA", self)
+        self.send_button.setAccessibleName("Enviar texto a la inteligencia artificial")
         
         self.vu_meter = VUMeter(self, height=16)
         self.vu_meter.setToolTip("Nivel de audio del micrófono")
+        self.vu_meter.setAccessibleName("Vúmetro indicador de nivel de audio")
 
         self.timer_label = QLabel("0:00", self)
         self.timer_label.setObjectName("statusLabel")
+        self.timer_label.setAccessibleName("Tiempo de grabación transcurrido")
         self.timer_label.setVisible(False)
 
         self._timer = QTimer(self)

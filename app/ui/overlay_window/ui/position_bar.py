@@ -22,6 +22,7 @@ class PositionBar(QWidget):
         self.pos_left_btn.setIcon(get_icon("arrow_left"))
         self.pos_left_btn.setIconSize(QSize(14, 14))
         self.pos_left_btn.setToolTip("Mover ventana al borde izquierdo")
+        self.pos_left_btn.setAccessibleName("Mover ventana a la izquierda")
         
         self.pos_center_btn = QPushButton("", self)
         self.pos_center_btn.setObjectName("edgeButton")
@@ -29,6 +30,7 @@ class PositionBar(QWidget):
         self.pos_center_btn.setIcon(get_icon("arrow_up"))
         self.pos_center_btn.setIconSize(QSize(14, 14))
         self.pos_center_btn.setToolTip("Centrar ventana en la parte superior")
+        self.pos_center_btn.setAccessibleName("Centrar ventana")
         
         self.pos_right_btn = QPushButton("", self)
         self.pos_right_btn.setObjectName("edgeButton")
@@ -36,6 +38,7 @@ class PositionBar(QWidget):
         self.pos_right_btn.setIcon(get_icon("arrow_right"))
         self.pos_right_btn.setIconSize(QSize(14, 14))
         self.pos_right_btn.setToolTip("Mover ventana al borde derecho")
+        self.pos_right_btn.setAccessibleName("Mover ventana a la derecha")
 
         self._pos_group = QButtonGroup(self)
         self._pos_group.setExclusive(True)
@@ -49,6 +52,7 @@ class PositionBar(QWidget):
         self.opacity_slider.setFixedWidth(100)
         self.opacity_slider.setObjectName("opacitySlider")
         self.opacity_slider.setToolTip("Ajustar opacidad de la ventana (20-100%)")
+        self.opacity_slider.setAccessibleName("Opacidad de la ventana")
         
         body_layout.addWidget(self.pos_left_btn)
         body_layout.addWidget(self.pos_center_btn)
@@ -59,6 +63,7 @@ class PositionBar(QWidget):
 
         self.opacity_pct_label = QLabel(f"{initial_opacity}%", self)
         self.opacity_pct_label.setToolTip("Opacidad actual")
+        self.opacity_pct_label.setAccessibleName("Porcentaje de opacidad actual")
         self.opacity_pct_label.setFixedWidth(36)
         body_layout.addWidget(self.opacity_pct_label)
         outer.addWidget(self.body)

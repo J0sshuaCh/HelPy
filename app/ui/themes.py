@@ -591,7 +591,10 @@ def obtener_qss(tema_nombre):
         #saveAIButton:focus, #saveButton:focus, #recordButton:focus,
         #downloadModelBtn:focus, #deviceCombo:focus, #searchInput:focus,
         QPushButton:focus, QLineEdit:focus, QComboBox:focus, QTextEdit#textArea:focus {{
-            border: 1px solid {t['resaltado']};
+            border: 2px solid {t['resaltado']};
+        }}
+        QSlider::handle:horizontal:focus {{
+            border: 2px solid {t['texto']};
         }}
         QLineEdit[invalid="true"] {{
             border: 1px solid {t['error']};
