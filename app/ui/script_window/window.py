@@ -114,6 +114,7 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
 
         self.viewer_stack.addWidget(self.md_view)
         self.viewer_stack.addWidget(self.pdf_scroll)
+        self.search_bar.set_target(self.md_view)
         container_layout.addWidget(self.viewer_stack)
 
         # --- Barra de lectura flotante (solo visible con documento) ---
@@ -369,6 +370,11 @@ class ScriptWindow(AnimatedCollapseMixin, DragMixin, QWidget):
             self.zoom_manager.handle_wheel_event(event, ui_settings)
             return
         super().wheelEvent(event)
+
+    def closeEvent(self, event):
+        if hasattr(self, "auto_scroll") and self.auto_scroll.is_active:
+            self.auto_scroll.stop()
+        super().closeEvent(event)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:

@@ -29,12 +29,14 @@ class SearchBar(QWidget):
         self.search_input = QLineEdit(self)
         self.search_input.setPlaceholderText("Buscar...")
         self.search_input.setObjectName("searchInput")
+        self.search_input.setAccessibleName("Buscar texto en el guion")
         self.search_input.returnPressed.connect(self._find_next)
         self.search_input.textChanged.connect(self._on_text_changed)
         layout.addWidget(self.search_input, 1)
         
         self.match_label = QLabel("0/0", self)
         self.match_label.setObjectName("statusLabel")
+        self.match_label.setAccessibleName("Coincidencias encontradas")
         self.match_label.setMinimumWidth(40)
         layout.addWidget(self.match_label)
         
@@ -43,6 +45,7 @@ class SearchBar(QWidget):
         self.prev_btn.setIcon(get_icon("arrow_left"))
         self.prev_btn.setIconSize(QSize(14, 14))
         self.prev_btn.setToolTip("Resultado anterior\nAtajo: Shift+Enter")
+        self.prev_btn.setAccessibleName("Resultado anterior")
         self.prev_btn.clicked.connect(self._find_prev)
         layout.addWidget(self.prev_btn)
         
@@ -51,6 +54,7 @@ class SearchBar(QWidget):
         self.next_btn.setIcon(get_icon("arrow_right"))
         self.next_btn.setIconSize(QSize(14, 14))
         self.next_btn.setToolTip("Siguiente resultado\nAtajo: Enter")
+        self.next_btn.setAccessibleName("Siguiente resultado")
         self.next_btn.clicked.connect(self._find_next)
         layout.addWidget(self.next_btn)
         
@@ -59,6 +63,7 @@ class SearchBar(QWidget):
         self.close_btn.setIcon(get_icon("close"))
         self.close_btn.setIconSize(QSize(14, 14))
         self.close_btn.setToolTip("Cerrar búsqueda\nAtajo: Escape")
+        self.close_btn.setAccessibleName("Cerrar barra de búsqueda")
         self.close_btn.clicked.connect(self.hide_bar)
         layout.addWidget(self.close_btn)
     
@@ -122,42 +127,40 @@ class SearchBar(QWidget):
         self._highlight_text(search_text)
     
     def _highlight_text(self, search_text):
-        """Resalta todas las ocurrencias del texto buscado."""
+        """Resalta todas las ocurrencias del texto buscado usando ExtraSelection sin alterar el formato."""
         if not self._target_text_edit:
             return
         
-        from PyQt5.QtGui import QTextDocument, QTextCursor, QTextCharFormat, QColor
+        from PyQt5.QtWidgets import QTextEdit
+        from PyQt5.QtGui import QTextDocument, QTextCursor, QColor
         
-        document = self._target_text_edit.document()
-        cursor = QTextCursor(document)
-        
-        # Limpiar resaltados anteriores
-        cursor.select(QTextCursor.Document)
-        fmt = QTextCharFormat()
-        cursor.setCharFormat(fmt)
-        
-        # Resaltar todas las ocurrencias
+        extra_selections = []
         if search_text:
+            document = self._target_text_edit.document()
+            cursor = QTextCursor(document)
             cursor.movePosition(QTextCursor.Start)
+            
+            highlight_color = QColor(255, 215, 0, 120)
             while True:
-                cursor = document.find(search_text, cursor, QTextDocument.FindCaseSensitively)
+                cursor = document.find(search_text, cursor, QTextDocument.FindFlags())
                 if cursor.isNull():
                     break
-                fmt = QTextCharFormat()
-                fmt.setBackground(QColor(255, 255, 0, 100))
-                cursor.mergeCharFormat(fmt)
+                selection = QTextEdit.ExtraSelection()
+                selection.cursor = cursor
+                selection.format.setBackground(highlight_color)
+                extra_selections.append(selection)
+        
+        self._target_text_edit.setExtraSelections(extra_selections)
     
+    def clear_highlights(self):
+        """Limpia todos los resaltados sin modificar el formato del documento (API pública)."""
+        self._clear_highlights()
+
     def _clear_highlights(self):
-        """Limpia todos los resaltados."""
+        """Limpia todos los resaltados sin modificar el formato del documento."""
         if not self._target_text_edit:
             return
-        
-        from PyQt5.QtGui import QTextCursor, QTextCharFormat
-        
-        cursor = QTextCursor(self._target_text_edit.document())
-        cursor.select(QTextCursor.Document)
-        fmt = QTextCharFormat()
-        cursor.setCharFormat(fmt)
+        self._target_text_edit.setExtraSelections([])
     
     def _find_next(self):
         """Busca la siguiente ocurrencia."""
